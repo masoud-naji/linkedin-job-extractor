@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LinkedIn Job Extractor</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="popup-shell" aria-live="polite">
+      <header class="app-header">
+        <div>
+          <p class="eyebrow">LinkedIn Job Extractor</p>
+          <h1 id="jobTitle">Open a LinkedIn job</h1>
+        </div>
+        <div class="status-dot" id="statusDot" aria-hidden="true"></div>
+      </header>
+
+      <section id="messageBox" class="message hidden" role="status"></section>
+
+      <section id="summaryPanel" class="summary-panel hidden">
+        <div class="company-row">
+          <span id="companyName" class="company-name">Not found</span>
+          <a id="companyUrl" class="company-link hidden" href="#" target="_blank" rel="noreferrer">Company profile</a>
+        </div>
+        <p id="location" class="location">Not found</p>
+
+        <div class="badge-row" id="badgeRow"></div>
+
+        <dl class="details-grid">
+          <div>
+            <dt>Date posted</dt>
+            <dd id="datePosted">Not found</dd>
+          </div>
+          <div>
+            <dt>Salary</dt>
+            <dd id="salary">Not found</dd>
+          </div>
+          <div>
+            <dt>Seniority</dt>
+            <dd id="seniorityLevel">Not found</dd>
+          </div>
+          <div>
+            <dt>Applicants</dt>
+            <dd id="applicantCount">Not found</dd>
+          </div>
+          <div class="wide-row">
+            <dt>Job URL</dt>
+            <dd><a id="jobUrl" href="#" target="_blank" rel="noreferrer">Not found</a></dd>
+          </div>
+        </dl>
+      </section>
+
+      <section id="fullPanel" class="full-panel hidden">
+        <div class="section-block">
+          <h2>About the Job</h2>
+          <p id="description" class="description-text">Not found</p>
+        </div>
+
+        <div class="section-block">
+          <h2>Skills</h2>
+          <ul id="skillsList" class="skills-list"></ul>
+        </div>
+
+        <dl class="details-grid full-grid">
+          <div>
+            <dt>Workplace type</dt>
+            <dd id="workplaceTypeFull">Not found</dd>
+          </div>
+          <div>
+            <dt>Employment type</dt>
+            <dd id="employmentTypeFull">Not found</dd>
+          </div>
+          <div>
+            <dt>Easy Apply</dt>
+            <dd id="easyApply">Not found</dd>
+          </div>
+          <div>
+            <dt>LinkedIn job ID</dt>
+            <dd id="jobId">Not found</dd>
+          </div>
+          <div class="wide-row">
+            <dt>Extracted at</dt>
+            <dd id="extractedAt">Not found</dd>
+          </div>
+        </dl>
+      </section>
+
+      <footer class="actions">
+        <button id="toggleDetails" type="button" class="primary-button">Show Full Job Details</button>
+        <button id="copyText" type="button">Copy Job Data</button>
+        <button id="copyJson" type="button">Copy as JSON</button>
+        <button id="refreshData" type="button">Refresh Job Data</button>
+        <button id="bulkImportTab" type="button">Bulk Import</button>
+      </footer>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

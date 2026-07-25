@@ -1,0 +1,272 @@
+:root {
+  color-scheme: light;
+  --ink: #19212a;
+  --muted: #5b6673;
+  --panel: #ffffff;
+  --soft-panel: #f5f7f9;
+  --line: #d8dee6;
+  --accent: #0a66c2;
+  --accent-dark: #084f96;
+  --accent-soft: #e8f2ff;
+  --success: #137333;
+  --warning: #9a6700;
+  --danger: #b3261e;
+  --shadow: 0 16px 48px rgba(20, 32, 46, 0.16);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  width: 420px;
+  min-height: 320px;
+  margin: 0;
+  color: var(--ink);
+  background: linear-gradient(145deg, #eef4fb 0%, #ffffff 48%, #f6f1e9 100%);
+  font-family: "Aptos", "Segoe UI", sans-serif;
+}
+
+button,
+a {
+  font: inherit;
+}
+
+.popup-shell {
+  padding: 18px;
+}
+
+.app-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.eyebrow {
+  margin: 0 0 4px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0;
+  font-size: 21px;
+  line-height: 1.18;
+  letter-spacing: 0;
+}
+
+h2 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  letter-spacing: 0;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 10px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--warning);
+  box-shadow: 0 0 0 4px rgba(154, 103, 0, 0.12);
+}
+
+.status-dot.ready {
+  background: var(--success);
+  box-shadow: 0 0 0 4px rgba(19, 115, 51, 0.12);
+}
+
+.status-dot.error {
+  background: var(--danger);
+  box-shadow: 0 0 0 4px rgba(179, 38, 30, 0.12);
+}
+
+.message {
+  margin-bottom: 12px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.summary-panel,
+.full-panel {
+  border: 1px solid rgba(216, 222, 230, 0.9);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: var(--shadow);
+}
+
+.summary-panel {
+  padding: 14px;
+}
+
+.company-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.company-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-weight: 700;
+}
+
+.company-link,
+#jobUrl {
+  color: var(--accent-dark);
+  text-decoration: none;
+}
+
+.company-link:hover,
+#jobUrl:hover {
+  text-decoration: underline;
+}
+
+.location {
+  margin: 6px 0 12px;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 14px;
+}
+
+.badge {
+  max-width: 100%;
+  padding: 4px 8px;
+  border: 1px solid rgba(10, 102, 194, 0.2);
+  border-radius: 999px;
+  color: var(--accent-dark);
+  background: var(--accent-soft);
+  font-size: 12px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.badge.easy {
+  color: var(--success);
+  border-color: rgba(19, 115, 51, 0.24);
+  background: #eaf6ee;
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 11px 12px;
+  margin: 0;
+}
+
+.details-grid div {
+  min-width: 0;
+}
+
+dt {
+  margin-bottom: 3px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+
+.wide-row {
+  grid-column: 1 / -1;
+}
+
+.full-panel {
+  margin-top: 12px;
+  padding: 14px;
+}
+
+.section-block + .section-block,
+.full-grid {
+  margin-top: 14px;
+}
+
+.description-text {
+  max-height: 280px;
+  margin: 0;
+  overflow: auto;
+  color: #27313d;
+  line-height: 1.48;
+  white-space: pre-wrap;
+}
+
+.skills-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.skills-list li {
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--soft-panel);
+  color: #313b46;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+button {
+  min-height: 36px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  background: #ffffff;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  border-color: rgba(10, 102, 194, 0.42);
+  background: #f8fbff;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.primary-button {
+  grid-column: 1 / -1;
+  color: #ffffff;
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.primary-button:hover:not(:disabled) {
+  border-color: var(--accent-dark);
+  background: var(--accent-dark);
+}
+
+.hidden {
+  display: none !important;
+}
