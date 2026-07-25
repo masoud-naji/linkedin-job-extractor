@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e ' *)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:unpkg.com)",
+      "Bash(node --check application-assistant.js)",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('manifest.json','utf8'\\)\\); console.log\\('manifest OK'\\)\")"
+    ]
+  }
+}

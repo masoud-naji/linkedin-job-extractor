@@ -23,10 +23,15 @@
     "activeTab",
     "scripting",
     "storage",
-    "tabs"
+    "tabs",
+    "unlimitedStorage"
   ],
   "host_permissions": [
     "https://www.linkedin.com/*"
+  ],
+  "optional_host_permissions": [
+    "*://boards.greenhouse.io/*",
+    "*://job-boards.greenhouse.io/*"
   ],
   "background": {
     "service_worker": "background.js"

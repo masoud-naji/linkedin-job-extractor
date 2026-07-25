@@ -155,6 +155,7 @@
         <td>${escapeHtml(job.companyName || "Not found")}</td>
         <td>${escapeHtml(job.location || "Not found")}</td>
         <td>${escapeHtml(job.salary || "Not found")}</td>
+        <td>${job.applicationClosed === true ? "Closed" : "Open"}</td>
       `;
       elements.resultsBody.appendChild(row);
     });
@@ -201,11 +202,17 @@
   }
 
   /**
-   * Requests job data from the tab, retrying until the description actually
-   * resolves. The content script can report status "ready" as soon as any one
-   * of jobTitle/companyName/description is found, which happens well before
-   * the async-loaded About section renders, so a single request is not
-   * enough for a freshly opened tab.
+   * Requests job data from the tab, retrying until both the description and
+   * the header location actually resolve. The content script can report
+   * status "ready" as soon as any one of jobTitle/companyName/description is
+   * found, which happens well before the async-loaded About section and
+   * header metadata (location included) finish rendering, so a single
+   * request is not enough for a freshly opened tab. Description alone isn't
+   * a reliable "fully loaded" signal either: on some layouts the header
+   * location renders slightly after the description resolves, which used to
+   * make bulk import cut the poll short and save "Not found" for location on
+   * jobs that do have one (confirmed by comparing against the individual
+   * popup extraction, which naturally allows more time before requesting).
    * @param {number} tabId
    * @param {{ maxAttempts?: number, intervalMs?: number }} [options]
    * @returns {Promise<object>}
@@ -215,9 +222,11 @@
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
       lastResponse = await sendTabMessage(tabId, { type: "GET_JOB_DATA", fresh: true });
       const description = lastResponse?.jobData?.description;
+      const location = lastResponse?.jobData?.location;
       const hasDescription = Boolean(description) && description !== "Not found";
+      const hasLocation = Boolean(location) && location !== "Not found";
       const isTerminal = ["extraction_failed", "not_linkedin", "not_job_page"].includes(lastResponse?.status);
-      if (hasDescription || isTerminal) {
+      if ((hasDescription && hasLocation) || isTerminal) {
         return lastResponse;
       }
       await new Promise((resolve) => window.setTimeout(resolve, intervalMs));

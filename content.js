@@ -19,6 +19,21 @@
   const SALARY_REGEX = new RegExp(SALARY_AMOUNT_SOURCE + "(?:\\s*[–—-]\\s*" + SALARY_AMOUNT_SOURCE + ")?");
   // Visible applicant / click-to-apply counts shown in the job header metadata.
   const APPLICANT_REGEX = /(?:over\s+\d[\d,]*|\d[\d,]*\+?)\s+(?:people\s+clicked\s+apply|applicants?)|be\s+among\s+the\s+first\s+\d+\s+applicants?/i;
+  // US state/territory postal abbreviations, used to recognize a "City, ST"
+  // location pattern anywhere in the page text (description, header, etc.)
+  // independent of any container/class name or render timing.
+  const US_STATE_ABBREVIATIONS = [
+    "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "DC", "FL", "GA", "GU", "HI", "ID", "IL", "IN",
+    "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ",
+    "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "PR", "RI", "SC", "SD", "TN", "TX", "UT", "VT",
+    "VA", "WA", "WV", "WI", "WY"
+  ];
+  // Matches "<Capitalized city/place words>, <state abbreviation>", e.g.
+  // "Boston, MA" or "New York, NY". Requires a real word boundary after the
+  // abbreviation so it can't match inside a longer word (e.g. "MASS").
+  const STATE_LOCATION_REGEX = new RegExp(
+    `\\b([A-Z][a-zA-Z.'-]+(?:\\s+[A-Z][a-zA-Z.'-]+){0,3}),\\s*(${US_STATE_ABBREVIATIONS.join("|")})\\b`
+  );
   const KNOWN_SKILLS = [
     "JavaScript", "TypeScript", "React", "React Native", "Angular", "Vue", "Node.js", "Next.js",
     "Express.js", "Redux", "Zustand", "tRPC", "TanStack Query", "React Query", "React Reanimated",
@@ -808,6 +823,41 @@
         return text;
       }
     }
+    return getHeaderMetaTextByScan();
+  }
+
+  /**
+   * Class-name-independent fallback for LinkedIn layouts that render the
+   * header metadata line (location · date · applicants) with fully hashed,
+   * frequently-rotating CSS classes instead of the semantic class names the
+   * selectors above target. Scans short paragraph-like elements near the top
+   * of the page for one whose own text is "· "-separated and contains a
+   * segment already recognizable as a date-ago or applicant-count phrase, and
+   * returns the first such match in document order (the top-card metadata
+   * reliably appears before any "similar jobs" rail, which uses the same
+   * phrasing for other listings further down the page).
+   * @returns {string}
+   */
+  function getHeaderMetaTextByScan() {
+    const scope = safeQuerySelector("main") || safeQuerySelector("article") || document.body;
+    if (!scope) {
+      return "";
+    }
+    const candidates = scope.querySelectorAll("p");
+    for (const el of candidates) {
+      const text = cleanText(el.textContent || "");
+      if (!text || text.length > 200 || !/[·•|]/.test(text)) {
+        continue;
+      }
+      const segments = text.split(/[·•|]/).map(cleanText).filter(Boolean);
+      if (segments.length < 2) {
+        continue;
+      }
+      const hasDateOrApplicant = segments.some((segment) => isDateMetaSegment(segment) || APPLICANT_REGEX.test(segment));
+      if (hasDateOrApplicant) {
+        return text;
+      }
+    }
     return "";
   }
 
@@ -894,9 +944,23 @@
       return byHeading;
     }
 
+    const pageText = cleanText(document.body?.textContent || "");
+
+    // Fallback: a "City, ST" pattern (US state/territory abbreviation)
+    // anywhere in the page text - notably matches phrasing in the job
+    // description itself (e.g. "based in the WHOOP office located in
+    // Boston, MA"), independent of any container selector, class name, or
+    // header-render timing. More specific than the remote-eligibility
+    // last resort below, so it's tried first.
+    const stateMatch = pageText.match(STATE_LOCATION_REGEX);
+    if (stateMatch) {
+      const cityState = `${cleanText(stateMatch[1])}, ${stateMatch[2]}`;
+      recordFieldDiag("location", { strategy: "Fallback: city/state pattern in page text", raw: cityState });
+      return cityState;
+    }
+
     // Last resort: LinkedIn's remote-eligibility label names the country but
     // does not provide a city or state.
-    const pageText = cleanText(document.body?.textContent || "");
     if (/\bUS\s*[-\u2013\u2014]\s*Remote Eligible\b/i.test(pageText)) {
       recordFieldDiag("location", { strategy: "Fallback: US remote eligibility label", raw: "US - Remote Eligible" });
       return "United States";
@@ -1509,6 +1573,31 @@
   }
 
   /**
+   * Detects LinkedIn's "No longer accepting applications" notice.
+   * @param {string} pageText
+   * @returns {boolean}
+   */
+  function detectApplicationClosed(pageText) {
+    // Primary: the accessible live-region notice - pairs an "Error"-labeled
+    // icon with the exact text, inside an aria-live region. More precise than
+    // a whole-page text search since it can't be confused by a "similar jobs"
+    // card elsewhere on the page that happens to mention the same phrase for
+    // a different listing; unlike a class-name selector, aria semantics don't
+    // rotate with LinkedIn's class-hashed template variants.
+    const liveRegions = safeQuerySelectorAll('[aria-live], [role="alert"]');
+    const structural = liveRegions.some((region) => {
+      const text = cleanText(region.textContent || "");
+      return /no longer accepting applications/i.test(text) && Boolean(region.querySelector('[aria-label*="error" i]'));
+    });
+    if (structural) {
+      return true;
+    }
+
+    // Fallback: plain text search, in case the aria structure changes.
+    return /no longer accepting applications/i.test(pageText);
+  }
+
+  /**
    * @param {string} href
    * @returns {string}
    */
@@ -1555,7 +1644,7 @@
    * @param {string} pageText
    * @param {string} description
    * @param {string} [jobTitle]
-   * @returns {{ seniorityLevel: string, salary: string, datePosted: string, applicantCount: string, easyApply: boolean }}
+   * @returns {{ seniorityLevel: string, salary: string, datePosted: string, applicantCount: string, easyApply: boolean, applicationClosed: boolean }}
    */
   function extractFooter(pageText, description, jobTitle) {
     return {
@@ -1563,7 +1652,8 @@
       salary: extractSalary(pageText, description),
       datePosted: extractDatePosted(pageText),
       applicantCount: extractApplicants(pageText),
-      easyApply: detectEasyApply(pageText)
+      easyApply: detectEasyApply(pageText),
+      applicationClosed: detectApplicationClosed(pageText)
     };
   }
 
@@ -1797,6 +1887,7 @@
       description,
       skills,
       easyApply: footer.easyApply,
+      applicationClosed: footer.applicationClosed,
       jobUrl: normalizeJobUrl(url),
       jobId: extractJobId(url),
       extractedAt: new Date().toISOString()

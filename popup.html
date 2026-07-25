@@ -16,6 +16,20 @@
         <div class="status-dot" id="statusDot" aria-hidden="true"></div>
       </header>
 
+      <section id="assistantPanel" class="assistant-panel">
+        <p class="eyebrow">Application Assistant</p>
+        <div class="assistant-row">
+          <label for="assistantProfileSelect" class="assistant-label">Active profile</label>
+          <select id="assistantProfileSelect"></select>
+        </div>
+        <button id="fillPageBtn" type="button" class="primary-button">Fill Basic Fields on This Page</button>
+        <p id="assistantStatus" class="assistant-status"></p>
+        <div id="iframePermissionRow" class="assistant-row hidden">
+          <span id="iframePermissionText" class="assistant-label"></span>
+          <button id="grantIframeAccess" type="button">Grant access&hellip;</button>
+        </div>
+      </section>
+
       <section id="messageBox" class="message hidden" role="status"></section>
 
       <section id="summaryPanel" class="summary-panel hidden">
@@ -92,9 +106,11 @@
         <button id="copyJson" type="button">Copy as JSON</button>
         <button id="refreshData" type="button">Refresh Job Data</button>
         <button id="bulkImportTab" type="button">Bulk Import</button>
+        <button id="manageProfiles" type="button">Profiles</button>
       </footer>
     </main>
 
+    <script src="profile-storage.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>
