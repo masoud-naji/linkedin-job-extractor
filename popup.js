@@ -50,6 +50,7 @@
     refreshData: document.getElementById("refreshData"),
     bulkImportTab: document.getElementById("bulkImportTab"),
     manageProfiles: document.getElementById("manageProfiles"),
+    manageMappings: document.getElementById("manageMappings"),
     assistantProfileSelect: document.getElementById("assistantProfileSelect"),
     fillPageBtn: document.getElementById("fillPageBtn"),
     assistantStatus: document.getElementById("assistantStatus"),
@@ -71,6 +72,7 @@
     elements.refreshData.addEventListener("click", () => loadJobData({ fresh: true }));
     elements.bulkImportTab.addEventListener("click", handleOpenBulkImportTab);
     elements.manageProfiles.addEventListener("click", handleOpenProfilesTab);
+    elements.manageMappings.addEventListener("click", handleOpenMappingsTab);
     elements.assistantProfileSelect.addEventListener("change", handleAssistantProfileChange);
     elements.fillPageBtn.addEventListener("click", handleFillPageClick);
     elements.grantIframeAccess.addEventListener("click", handleGrantIframeAccess);
@@ -141,7 +143,10 @@
     try {
       await new Promise((resolve, reject) => {
         chrome.scripting.executeScript(
-          { target: { tabId: tab.id, allFrames: true }, files: ["profile-storage.js", "application-assistant.js"] },
+          {
+            target: { tabId: tab.id, allFrames: true },
+            files: ["profile-storage.js", "field-mapping-storage.js", "application-assistant.js"]
+          },
           () => {
             if (chrome.runtime.lastError) {
               reject(new Error(chrome.runtime.lastError.message));
@@ -516,6 +521,10 @@
 
   function handleOpenProfilesTab() {
     chrome.tabs.create({ url: chrome.runtime.getURL("profiles.html"), active: true });
+  }
+
+  function handleOpenMappingsTab() {
+    chrome.tabs.create({ url: chrome.runtime.getURL("mappings.html"), active: true });
   }
 
   /**

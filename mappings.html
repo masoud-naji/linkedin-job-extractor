@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LinkedIn Job Extractor - Field Mappings</title>
+    <style>
+      body {
+        font-family: "Segoe UI", sans-serif;
+        margin: 0;
+        padding: 20px;
+        background: #f7f9fc;
+        color: #19212a;
+      }
+      .page {
+        max-width: 1080px;
+        margin: 0 auto;
+      }
+      .page-header h1 {
+        margin: 0 0 4px;
+      }
+      .page-header p {
+        margin: 0 0 18px;
+        color: #5b6673;
+      }
+      .toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+      }
+      .toolbar-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      input[type="search"] {
+        padding: 8px 10px;
+        border: 1px solid #d8dee6;
+        border-radius: 8px;
+        font: inherit;
+        min-width: 260px;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        gap: 16px;
+        align-items: start;
+      }
+      .sidebar,
+      .detail {
+        padding: 14px;
+        border-radius: 10px;
+        background: #fff;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      }
+      .sidebar h2,
+      .detail h2 {
+        margin: 0 0 10px;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #5b6673;
+      }
+      .domain-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        max-height: 480px;
+        overflow: auto;
+      }
+      .domain-item + .domain-item {
+        margin-top: 6px;
+      }
+      .domain-item-button {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid #e5eaf0;
+        border-radius: 8px;
+        background: #fafbfd;
+        color: #19212a;
+        text-align: left;
+        cursor: pointer;
+        font: inherit;
+        font-size: 12px;
+      }
+      .domain-item.selected .domain-item-button {
+        border-color: #0a66c2;
+        background: #eaf2fc;
+      }
+      .count-pill {
+        padding: 1px 7px;
+        border-radius: 999px;
+        background: #e5eaf0;
+        color: #5b6673;
+        font-size: 11px;
+        font-weight: 700;
+      }
+      .domain-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+      .empty-state {
+        color: #5b6673;
+      }
+      table.mapping-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      .mapping-table th,
+      .mapping-table td {
+        text-align: left;
+        padding: 8px 10px;
+        border-bottom: 1px solid #eef1f5;
+        vertical-align: middle;
+      }
+      .mapping-table th {
+        color: #5b6673;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+      .mapping-table select {
+        padding: 5px 6px;
+        border: 1px solid #d8dee6;
+        border-radius: 6px;
+        font: inherit;
+        font-size: 12px;
+      }
+      .mapsto-value {
+        display: block;
+        width: 100%;
+        margin-top: 6px;
+        padding: 5px 6px;
+        border: 1px solid #d8dee6;
+        border-radius: 6px;
+        font: inherit;
+        font-size: 12px;
+        box-sizing: border-box;
+      }
+      .pill {
+        padding: 2px 7px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+      }
+      .pill.source-auto {
+        background: #eaf2fc;
+        color: #0a66c2;
+      }
+      .pill.source-user {
+        background: #eaf6ee;
+        color: #137333;
+      }
+      .pill.status-enabled {
+        background: #eaf6ee;
+        color: #137333;
+      }
+      .pill.status-disabled {
+        background: #fdeaea;
+        color: #b3261e;
+      }
+      .row-actions {
+        display: flex;
+        gap: 6px;
+      }
+      button {
+        padding: 7px 11px;
+        border: 1px solid #0a66c2;
+        border-radius: 6px;
+        background: #0a66c2;
+        color: #fff;
+        font: inherit;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      button.secondary {
+        background: #fff;
+        color: #0a66c2;
+      }
+      button.danger {
+        border-color: #b3261e;
+        background: #fff;
+        color: #b3261e;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .status-message {
+        margin: 0 0 12px;
+        color: #5b6673;
+        font-size: 12px;
+      }
+      .domain-cell {
+        color: #5b6673;
+        font-size: 11px;
+      }
+      .field-cell strong {
+        display: block;
+      }
+      .hidden {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header class="page-header">
+        <h1>Field Mappings</h1>
+        <p>Smart Mapping remembers how each job site names its form fields, so you only map a field once per domain. Nothing here is uploaded or shared.</p>
+      </header>
+
+      <div class="toolbar">
+        <input id="searchInput" type="search" placeholder="Search domain, field, or profile value…">
+        <div class="toolbar-actions">
+          <button id="exportAll" type="button" class="secondary">Export All</button>
+          <button id="importAll" type="button" class="secondary">Import</button>
+          <input id="importFile" type="file" accept="application/json,.json" hidden>
+          <button id="resetAll" type="button" class="danger">Reset All</button>
+        </div>
+      </div>
+
+      <p id="statusMessage" class="status-message"></p>
+
+      <div class="layout">
+        <aside class="sidebar">
+          <h2>Domains</h2>
+          <ul id="domainList" class="domain-list"></ul>
+        </aside>
+
+        <section class="detail">
+          <div id="domainHeader" class="domain-header hidden">
+            <h2 id="domainTitle"></h2>
+            <button id="resetDomain" type="button" class="danger">Reset This Domain</button>
+          </div>
+
+          <p id="emptyState" class="empty-state">
+            No field mappings yet. Mappings are created automatically as the Application Assistant recognizes fields, or when you confirm an ambiguous one.
+          </p>
+
+          <table id="mappingTable" class="mapping-table hidden">
+            <thead>
+              <tr>
+                <th>Domain</th>
+                <th>Field</th>
+                <th>Maps to</th>
+                <th>Source</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="mappingTableBody"></tbody>
+          </table>
+        </section>
+      </div>
+    </div>
+
+    <script src="field-mapping-storage.js"></script>
+    <script src="mappings.js"></script>
+  </body>
+</html>

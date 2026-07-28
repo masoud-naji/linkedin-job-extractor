@@ -1,10 +1,11 @@
 # LinkedIn Job Extractor
 
-A Chrome extension (Manifest V3) with three parts:
+A Chrome extension (Manifest V3) with four parts:
 
 1. **Job Extractor** — pulls structured job details from the LinkedIn job posting page you're currently viewing.
 2. **Profile Manager** — stores multiple resume profiles (contact info, links, resume PDF, resume JSON) locally in your browser.
 3. **Application Assistant** — recognizes common application-form fields on any page and offers to fill them from your active profile.
+4. **Smart Mapping** — remembers, per website, how a field was resolved last time, so you only ever answer for a given field once per site. Includes a manual fallback ("+") for fields it never recognized at all.
 
 ## Features
 
@@ -25,7 +26,19 @@ A Chrome extension (Manifest V3) with three parts:
 - Detects common application fields (full/first/last name, email, phone, LinkedIn/portfolio/GitHub URL, current title, location) using standard HTML signals (`autocomplete`, `name`/`id`, `placeholder`, `aria-label`, associated `<label>` text).
 - Shows a small ⚡ icon next to each recognized field; clicking it fills just that field from your active profile.
 - One "Fill Basic Fields" action fills every recognized *empty* field at once — it never overwrites something you've already typed, and it never submits the form.
+- Every fill (badge click, "Fill Basic Fields," or a Smart Mapping/manual-fallback pick) goes through one shared fill routine that writes the value, fires the same events a real keystroke would, and briefly cycles focus so React/Vue/Angular-based forms (Ashby, Greenhouse, Lever, Workday, etc.) register the change immediately instead of still showing "required" until you click into the field yourself.
 - Ignores anything it isn't confident about, including custom employer questions, EEO/demographic questions, and free-text essay fields.
+
+**Smart Mapping**
+- Learns, per website (by domain), how each of its fields should be filled — no repeated guesswork on later visits to the same site.
+- Confidently recognized fields (e.g. a field with `autocomplete="email"`) are filled and remembered automatically, with no interruption.
+- Ambiguous fields (e.g. a field just labeled "Website," which could mean portfolio, LinkedIn, or something else) show a small "?" icon; click it once, pick the right profile value (or "Skip"), and that choice is remembered for that site from then on. The dropdown's best guess is marked "(suggested)" but starts unselected — you always have to actively pick an option, even the suggested one, so the choice reliably registers.
+- **Custom values**: many ATS questions aren't part of your profile at all — "How did you hear about us?", "Work Authorization", "Desired Salary", "Current Employer". Pick "+ Create Custom Value…" in the picker (or "Custom value…" in the Mapping Manager), type the answer once, and it's replayed on every future visit to that site. Nothing is guessed or AI-generated — it's exactly what you typed.
+- If a mapping resolves to nothing (e.g. you pick "LinkedIn" but your active profile's LinkedIn field is blank), the on-page toolbar says so explicitly instead of silently doing nothing — the mapping is still saved, so fill in the missing profile field or edit the mapping in Field Mappings.
+- A **Field Mappings** manager page lets you view, search, edit (including custom values), disable, or delete any learned mapping, reset a single site, reset everything, or export/import your mappings as JSON.
+- Mappings are keyed by domain, not by job posting — e.g. every company hosted on `jobs.jobvite.com` or `job-boards.greenhouse.io` shares one set of learned mappings, so the "answer once" benefit applies across every posting on that platform, not just the one you were on.
+- **Manual fallback ("+")**: some fields (unusual `<textarea>`s, custom widgets, anything the detector genuinely has no signal for) never get a ⚡ or a "?" at all. A small gray "+" now appears on those instead — click it, pick which profile value to use (or "+ Create Custom Value…", same as the "?" picker), and choose whether to always use it for that field on that domain (or just this once). It's a plain picker over the same profile fields and custom-value option as everywhere else — no detection, no guessing, nothing added to what the assistant tries to recognize on its own.
+- Everything stays local (`chrome.storage.local`); no AI is involved in resolving ambiguous fields, custom values, or manual fills — only your own one-time choice.
 
 ## Installation
 
@@ -52,6 +65,12 @@ For extracting multiple jobs at once, use the bulk extraction page bundled with 
 1. Navigate to any job application page.
 2. Click the extension icon, pick the active profile from the dropdown if needed, and click **Fill Basic Fields on This Page**.
 3. Review the ⚡-marked fields on the page — click individual icons or use the on-page "Fill Basic Fields" button. Nothing is submitted for you.
+4. If an amber **?** icon appears on a field, click it and choose which profile value it should use, "Skip," or "+ Create Custom Value…" to type a fixed answer of your own. You won't be asked again for that field on that site.
+5. If a small gray **+** icon appears on a field, the assistant didn't recognize it at all — click it, pick a profile value (or "+ Create Custom Value…") to fill it with, and say whether to remember that choice for this site or just use it this once.
+
+**Reviewing what's been learned:**
+1. Click the extension icon, then **Field Mappings**.
+2. Browse by domain, search, edit a mapping's target, disable/delete one, or reset a whole domain.
 
 ## Permissions
 
@@ -86,6 +105,8 @@ There is no build step — this is plain JavaScript loaded unpacked by Chrome.
 - `profile-storage.js` — CRUD storage module for profiles (`chrome.storage.local` only); shared by the Profiles page and the injected Application Assistant
 - `profiles.html` / `profiles.js` — Profile Manager UI (create/rename/duplicate/delete profiles, import/export, resume PDF/JSON)
 - `application-assistant.js` — Application Assistant, injected on demand into the active tab to detect and fill form fields
+- `field-mapping-storage.js` — Smart Mapping storage module (`chrome.storage.local` only); shared by the Field Mappings page and the injected Application Assistant
+- `mappings.html` / `mappings.js` — Field Mappings manager UI (view/search/edit/disable/delete mappings, reset a domain or everything, export/import)
 - `grant-access.html` / `grant-access.js` — one-off tab for granting access to a specific ATS iframe origin (e.g. Greenhouse) when a form is embedded cross-origin
 - `background.js` — service worker (badge setup)
 - `tests/` — regression tests for parser helpers
