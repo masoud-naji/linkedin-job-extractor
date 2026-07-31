@@ -1,11 +1,12 @@
 # LinkedIn Job Extractor
 
-A Chrome extension (Manifest V3) with four parts:
+A Chrome extension (Manifest V3) with five parts:
 
 1. **Job Extractor** — pulls structured job details from the LinkedIn job posting page you're currently viewing.
 2. **Profile Manager** — stores multiple resume profiles (contact info, links, resume PDF, resume JSON) locally in your browser.
 3. **Application Assistant** — recognizes common application-form fields on any page and offers to fill them from your active profile.
 4. **Smart Mapping** — remembers, per website, how a field was resolved last time, so you only ever answer for a given field once per site. Includes a manual fallback ("+") for fields it never recognized at all.
+5. **Application History** *(foundation)* — a local, automatic record of jobs you've submitted applications for, viewable in a simple history list.
 
 ## Features
 
@@ -40,6 +41,17 @@ A Chrome extension (Manifest V3) with four parts:
 - **Manual fallback ("+")**: some fields (unusual `<textarea>`s, custom widgets, anything the detector genuinely has no signal for) never get a ⚡ or a "?" at all. A small gray "+" now appears on those instead — click it, pick which profile value to use (or "+ Create Custom Value…", same as the "?" picker), and choose whether to always use it for that field on that domain (or just this once). It's a plain picker over the same profile fields and custom-value option as everywhere else — no detection, no guessing, nothing added to what the assistant tries to recognize on its own.
 - Everything stays local (`chrome.storage.local`); no AI is involved in resolving ambiguous fields, custom values, or manual fills — only your own one-time choice.
 
+**Application History** *(foundation phase — more is planned on top of this)*
+- After you use "Fill Basic Fields on This Page," the extension quietly watches for signs you've actually submitted the application. Clicking "Submit Application"/"Finish" (or a real form submit) never records anything by itself — it only starts a brief wait (a few seconds) for real confirmation: a "thank you"/"application received" message, or the page navigating to something that looks like a confirmation screen. If a validation error shows up instead (e.g. "Email is required"), or nothing happens before the wait ends, nothing is recorded — you can fix the form and submit again, and it'll watch again.
+- The first confirmed success saves one local history record — company, position, job URL, domain, and the date — then tracking stops for that page. This is heuristic and best-effort by design, not guaranteed to catch every ATS's exact submission flow, and only runs on pages where you've used the Application Assistant at least once (it needs no new permissions, so it can't watch pages the extension was never invoked on).
+- Company and position names are guessed from the page's `<h1>`, `og:site_name` meta tag, and `document.title` — usually right, occasionally off on unusual title formats. Nothing is fetched from a server to verify or improve these.
+- The same job (by URL, ignoring tracking query parameters) is never recorded twice — revisiting or reapplying just updates when it was last seen.
+- View everything in **Application History**: a simple, newest-first list of company, position, resume/cover letter used, status, and date. Each entry has **Edit** (fix a misdetected company/position) and **Delete**. No filters, search, export, or status changes yet — this phase is only the storage foundation for those.
+- Company-name detection prefers real page signals (`og:site_name`, `<title>`) but ignores them when they're just an ATS platform's own brand (e.g. "Ashby", "Greenhouse") rather than the employer — those cases fall back to guessing the employer from the job URL's path (e.g. `jobs.ashbyhq.com/<company>/...`) before finally falling back to the hostname. Opening the History page also silently re-checks and fixes any already-saved record whose company was one of those platform-brand names.
+- Local only (`chrome.storage.local`), independent of the Profile Manager, Smart Mapping, and Application Assistant — no AI, no analytics, no export yet.
+- **Resume Used / Cover Letter Used**: while you're filling out a form, the tracker also watches for `.pdf`/`.doc`/`.docx` files selected in any file input on the page and guesses whether each one is a resume or cover letter from its filename (e.g. "resume", "cv" vs. "cover", "letter", "motivation" — case-insensitive). Only the filename metadata is kept, never the file's contents — this extension is not a document manager, so nothing is uploaded, parsed, or read. A file it can't confidently classify is silently ignored rather than guessed at.
+- If you select more than one resume (or cover letter) before submitting, only the most recent selection is kept, and it's scoped to that page's session — reopening the extension on a different application starts fresh, so an old resume never carries over. Whichever resume/cover letter was most recently selected when the submission is confirmed gets attached to that history record.
+
 ## Installation
 
 1. Clone or download this repository.
@@ -71,6 +83,10 @@ For extracting multiple jobs at once, use the bulk extraction page bundled with 
 **Reviewing what's been learned:**
 1. Click the extension icon, then **Field Mappings**.
 2. Browse by domain, search, edit a mapping's target, disable/delete one, or reset a whole domain.
+
+**Reviewing your application history:**
+1. Click the extension icon, then **Application History**.
+2. See every application the extension has automatically recorded, newest first.
 
 ## Permissions
 
@@ -107,6 +123,10 @@ There is no build step — this is plain JavaScript loaded unpacked by Chrome.
 - `application-assistant.js` — Application Assistant, injected on demand into the active tab to detect and fill form fields
 - `field-mapping-storage.js` — Smart Mapping storage module (`chrome.storage.local` only); shared by the Field Mappings page and the injected Application Assistant
 - `mappings.html` / `mappings.js` — Field Mappings manager UI (view/search/edit/disable/delete mappings, reset a domain or everything, export/import)
+- `application-history-storage.js` — Application History storage module (`chrome.storage.local` only, independent of profiles/mappings/autofill); shared by the History page and the injected tracker
+- `document-tracker.js` — generic, config-driven file-input watcher/classifier (resume vs. cover letter, by filename keyword); a single `trackDocument(type, metadata)` module reused for both document types, extensible to future document types
+- `application-history-tracker.js` — on-demand, best-effort detector for a successful application submission, injected alongside the Application Assistant; also attaches the most recently selected resume/cover letter metadata (via document-tracker.js) to the recorded application
+- `history.html` / `history.js` — Application History UI (simple newest-first list including resume/cover letter used; foundation for future status/export features)
 - `grant-access.html` / `grant-access.js` — one-off tab for granting access to a specific ATS iframe origin (e.g. Greenhouse) when a form is embedded cross-origin
 - `background.js` — service worker (badge setup)
 - `tests/` — regression tests for parser helpers

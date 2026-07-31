@@ -126,6 +126,35 @@ h2 {
   font-size: 12px;
 }
 
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.tab-button {
+  flex: 1 1 auto;
+  padding: 8px 10px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  color: var(--muted);
+  background: transparent;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.tab-button:hover:not(.active) {
+  color: var(--ink);
+}
+
+.tab-button.active {
+  color: var(--accent-dark);
+  border-bottom-color: var(--accent);
+}
+
 .message {
   margin-bottom: 12px;
   padding: 11px 12px;
@@ -143,21 +172,54 @@ h2 {
   box-shadow: var(--shadow);
 }
 
-.summary-panel {
-  padding: 14px;
-}
-
-.company-row {
+.summary-toggle {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  padding: 14px;
+  cursor: pointer;
+  list-style: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.summary-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.summary-toggle::after {
+  content: "\25be";
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.summary-panel[open] .summary-toggle::after {
+  content: "\25b4";
+}
+
+.summary-toggle:hover {
+  background: #f8fbff;
+}
+
+.summary-body {
+  padding: 0 14px 14px;
 }
 
 .company-name {
   min-width: 0;
-  overflow-wrap: anywhere;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-weight: 700;
+}
+
+.company-link {
+  display: inline-block;
+  margin-bottom: 8px;
+  font-size: 12px;
 }
 
 .company-link,
@@ -172,7 +234,7 @@ h2 {
 }
 
 .location {
-  margin: 6px 0 12px;
+  margin: 0 0 12px;
   color: var(--muted);
   line-height: 1.35;
 }

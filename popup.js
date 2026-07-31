@@ -23,6 +23,10 @@
   };
 
   const elements = {
+    jobTabButton: document.getElementById("jobTabButton"),
+    toolsTabButton: document.getElementById("toolsTabButton"),
+    jobTabPanel: document.getElementById("jobTabPanel"),
+    toolsTabPanel: document.getElementById("toolsTabPanel"),
     jobTitle: document.getElementById("jobTitle"),
     statusDot: document.getElementById("statusDot"),
     messageBox: document.getElementById("messageBox"),
@@ -51,6 +55,7 @@
     bulkImportTab: document.getElementById("bulkImportTab"),
     manageProfiles: document.getElementById("manageProfiles"),
     manageMappings: document.getElementById("manageMappings"),
+    viewHistory: document.getElementById("viewHistory"),
     assistantProfileSelect: document.getElementById("assistantProfileSelect"),
     fillPageBtn: document.getElementById("fillPageBtn"),
     assistantStatus: document.getElementById("assistantStatus"),
@@ -66,6 +71,8 @@
   });
 
   function bindEvents() {
+    elements.jobTabButton.addEventListener("click", () => switchTab("job"));
+    elements.toolsTabButton.addEventListener("click", () => switchTab("tools"));
     elements.toggleDetails.addEventListener("click", handleToggleDetails);
     elements.copyText.addEventListener("click", () => copyToClipboard(formatPlainText(state.currentJob), "Copied job data.", elements.copyText));
     elements.copyJson.addEventListener("click", () => copyToClipboard(JSON.stringify(state.currentJob || {}, null, 2), "Copied JSON.", elements.copyJson));
@@ -73,9 +80,23 @@
     elements.bulkImportTab.addEventListener("click", handleOpenBulkImportTab);
     elements.manageProfiles.addEventListener("click", handleOpenProfilesTab);
     elements.manageMappings.addEventListener("click", handleOpenMappingsTab);
+    elements.viewHistory.addEventListener("click", handleOpenHistoryTab);
     elements.assistantProfileSelect.addEventListener("change", handleAssistantProfileChange);
     elements.fillPageBtn.addEventListener("click", handleFillPageClick);
     elements.grantIframeAccess.addEventListener("click", handleGrantIframeAccess);
+  }
+
+  /**
+   * @param {"job" | "tools"} tab
+   */
+  function switchTab(tab) {
+    const isJob = tab === "job";
+    elements.jobTabButton.classList.toggle("active", isJob);
+    elements.jobTabButton.setAttribute("aria-selected", String(isJob));
+    elements.toolsTabButton.classList.toggle("active", !isJob);
+    elements.toolsTabButton.setAttribute("aria-selected", String(!isJob));
+    elements.jobTabPanel.classList.toggle("hidden", !isJob);
+    elements.toolsTabPanel.classList.toggle("hidden", isJob);
   }
 
   async function loadAssistantProfiles() {
@@ -145,7 +166,14 @@
         chrome.scripting.executeScript(
           {
             target: { tabId: tab.id, allFrames: true },
-            files: ["profile-storage.js", "field-mapping-storage.js", "application-assistant.js"]
+            files: [
+              "profile-storage.js",
+              "field-mapping-storage.js",
+              "application-assistant.js",
+              "application-history-storage.js",
+              "document-tracker.js",
+              "application-history-tracker.js"
+            ]
           },
           () => {
             if (chrome.runtime.lastError) {
@@ -525,6 +553,10 @@
 
   function handleOpenMappingsTab() {
     chrome.tabs.create({ url: chrome.runtime.getURL("mappings.html"), active: true });
+  }
+
+  function handleOpenHistoryTab() {
+    chrome.tabs.create({ url: chrome.runtime.getURL("history.html"), active: true });
   }
 
   /**

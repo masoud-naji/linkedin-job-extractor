@@ -16,99 +16,114 @@
         <div class="status-dot" id="statusDot" aria-hidden="true"></div>
       </header>
 
-      <section id="assistantPanel" class="assistant-panel">
-        <p class="eyebrow">Application Assistant</p>
-        <div class="assistant-row">
-          <label for="assistantProfileSelect" class="assistant-label">Active profile</label>
-          <select id="assistantProfileSelect"></select>
-        </div>
-        <button id="fillPageBtn" type="button" class="primary-button">Fill Basic Fields on This Page</button>
-        <p id="assistantStatus" class="assistant-status"></p>
-        <div id="iframePermissionRow" class="assistant-row hidden">
-          <span id="iframePermissionText" class="assistant-label"></span>
-          <button id="grantIframeAccess" type="button">Grant access&hellip;</button>
-        </div>
+      <div class="tabs" role="tablist">
+        <button id="jobTabButton" type="button" class="tab-button active" role="tab" aria-selected="true" aria-controls="jobTabPanel">LinkedIn Job</button>
+        <button id="toolsTabButton" type="button" class="tab-button" role="tab" aria-selected="false" aria-controls="toolsTabPanel">Tools</button>
+      </div>
+
+      <section id="jobTabPanel" class="tab-panel" role="tabpanel">
+        <section id="messageBox" class="message hidden" role="status"></section>
+
+        <details id="summaryPanel" class="summary-panel hidden">
+          <summary class="summary-toggle">
+            <span id="companyName" class="company-name">Not found</span>
+          </summary>
+          <div class="summary-body">
+            <a id="companyUrl" class="company-link hidden" href="#" target="_blank" rel="noreferrer">Company profile</a>
+            <p id="location" class="location">Not found</p>
+
+            <div class="badge-row" id="badgeRow"></div>
+
+            <dl class="details-grid">
+              <div>
+                <dt>Date posted</dt>
+                <dd id="datePosted">Not found</dd>
+              </div>
+              <div>
+                <dt>Salary</dt>
+                <dd id="salary">Not found</dd>
+              </div>
+              <div>
+                <dt>Seniority</dt>
+                <dd id="seniorityLevel">Not found</dd>
+              </div>
+              <div>
+                <dt>Applicants</dt>
+                <dd id="applicantCount">Not found</dd>
+              </div>
+              <div class="wide-row">
+                <dt>Job URL</dt>
+                <dd><a id="jobUrl" href="#" target="_blank" rel="noreferrer">Not found</a></dd>
+              </div>
+            </dl>
+          </div>
+        </details>
+
+        <section id="fullPanel" class="full-panel hidden">
+          <div class="section-block">
+            <h2>About the Job</h2>
+            <p id="description" class="description-text">Not found</p>
+          </div>
+
+          <div class="section-block">
+            <h2>Skills</h2>
+            <ul id="skillsList" class="skills-list"></ul>
+          </div>
+
+          <dl class="details-grid full-grid">
+            <div>
+              <dt>Workplace type</dt>
+              <dd id="workplaceTypeFull">Not found</dd>
+            </div>
+            <div>
+              <dt>Employment type</dt>
+              <dd id="employmentTypeFull">Not found</dd>
+            </div>
+            <div>
+              <dt>Easy Apply</dt>
+              <dd id="easyApply">Not found</dd>
+            </div>
+            <div>
+              <dt>LinkedIn job ID</dt>
+              <dd id="jobId">Not found</dd>
+            </div>
+            <div class="wide-row">
+              <dt>Extracted at</dt>
+              <dd id="extractedAt">Not found</dd>
+            </div>
+          </dl>
+        </section>
+
+        <footer class="actions">
+          <button id="toggleDetails" type="button" class="primary-button">Show Full Job Details</button>
+          <button id="copyText" type="button">Copy Job Data</button>
+          <button id="copyJson" type="button">Copy as JSON</button>
+          <button id="refreshData" type="button">Refresh Job Data</button>
+        </footer>
       </section>
 
-      <section id="messageBox" class="message hidden" role="status"></section>
+      <section id="toolsTabPanel" class="tab-panel hidden" role="tabpanel">
+        <section id="assistantPanel" class="assistant-panel">
+          <p class="eyebrow">Application Assistant</p>
+          <div class="assistant-row">
+            <label for="assistantProfileSelect" class="assistant-label">Active profile</label>
+            <select id="assistantProfileSelect"></select>
+          </div>
+          <button id="fillPageBtn" type="button" class="primary-button">Fill Basic Fields on This Page</button>
+          <p id="assistantStatus" class="assistant-status"></p>
+          <div id="iframePermissionRow" class="assistant-row hidden">
+            <span id="iframePermissionText" class="assistant-label"></span>
+            <button id="grantIframeAccess" type="button">Grant access&hellip;</button>
+          </div>
+        </section>
 
-      <section id="summaryPanel" class="summary-panel hidden">
-        <div class="company-row">
-          <span id="companyName" class="company-name">Not found</span>
-          <a id="companyUrl" class="company-link hidden" href="#" target="_blank" rel="noreferrer">Company profile</a>
-        </div>
-        <p id="location" class="location">Not found</p>
-
-        <div class="badge-row" id="badgeRow"></div>
-
-        <dl class="details-grid">
-          <div>
-            <dt>Date posted</dt>
-            <dd id="datePosted">Not found</dd>
-          </div>
-          <div>
-            <dt>Salary</dt>
-            <dd id="salary">Not found</dd>
-          </div>
-          <div>
-            <dt>Seniority</dt>
-            <dd id="seniorityLevel">Not found</dd>
-          </div>
-          <div>
-            <dt>Applicants</dt>
-            <dd id="applicantCount">Not found</dd>
-          </div>
-          <div class="wide-row">
-            <dt>Job URL</dt>
-            <dd><a id="jobUrl" href="#" target="_blank" rel="noreferrer">Not found</a></dd>
-          </div>
-        </dl>
+        <footer class="actions">
+          <button id="bulkImportTab" type="button">Bulk Import</button>
+          <button id="manageProfiles" type="button">Profiles</button>
+          <button id="manageMappings" type="button">Field Mappings</button>
+          <button id="viewHistory" type="button">Application History</button>
+        </footer>
       </section>
-
-      <section id="fullPanel" class="full-panel hidden">
-        <div class="section-block">
-          <h2>About the Job</h2>
-          <p id="description" class="description-text">Not found</p>
-        </div>
-
-        <div class="section-block">
-          <h2>Skills</h2>
-          <ul id="skillsList" class="skills-list"></ul>
-        </div>
-
-        <dl class="details-grid full-grid">
-          <div>
-            <dt>Workplace type</dt>
-            <dd id="workplaceTypeFull">Not found</dd>
-          </div>
-          <div>
-            <dt>Employment type</dt>
-            <dd id="employmentTypeFull">Not found</dd>
-          </div>
-          <div>
-            <dt>Easy Apply</dt>
-            <dd id="easyApply">Not found</dd>
-          </div>
-          <div>
-            <dt>LinkedIn job ID</dt>
-            <dd id="jobId">Not found</dd>
-          </div>
-          <div class="wide-row">
-            <dt>Extracted at</dt>
-            <dd id="extractedAt">Not found</dd>
-          </div>
-        </dl>
-      </section>
-
-      <footer class="actions">
-        <button id="toggleDetails" type="button" class="primary-button">Show Full Job Details</button>
-        <button id="copyText" type="button">Copy Job Data</button>
-        <button id="copyJson" type="button">Copy as JSON</button>
-        <button id="refreshData" type="button">Refresh Job Data</button>
-        <button id="bulkImportTab" type="button">Bulk Import</button>
-        <button id="manageProfiles" type="button">Profiles</button>
-        <button id="manageMappings" type="button">Field Mappings</button>
-      </footer>
     </main>
 
     <script src="profile-storage.js"></script>

@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LinkedIn Job Extractor - Application History</title>
+    <style>
+      body {
+        font-family: "Segoe UI", sans-serif;
+        margin: 0;
+        padding: 20px;
+        background: #f7f9fc;
+        color: #19212a;
+      }
+      .page {
+        max-width: 720px;
+        margin: 0 auto;
+      }
+      .page-header h1 {
+        margin: 0 0 4px;
+      }
+      .page-header p {
+        margin: 0 0 18px;
+        color: #5b6673;
+      }
+      .empty-state {
+        color: #5b6673;
+      }
+      .history-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .history-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 16px;
+        border-radius: 10px;
+        background: #ffffff;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+        margin-bottom: 10px;
+      }
+      .history-main {
+        min-width: 0;
+      }
+      .history-company {
+        font-weight: 700;
+        font-size: 14px;
+      }
+      .history-position {
+        color: #5b6673;
+        font-size: 13px;
+        margin-top: 2px;
+      }
+      .history-docs {
+        margin-top: 8px;
+        display: flex;
+        gap: 16px;
+      }
+      .history-doc {
+        font-size: 12px;
+      }
+      .history-doc-label {
+        color: #8a93a1;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        font-size: 10px;
+      }
+      .history-doc-value {
+        color: #19212a;
+        margin-top: 1px;
+      }
+      .history-meta {
+        text-align: right;
+        white-space: nowrap;
+      }
+      .history-status {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: #eaf6ee;
+        color: #137333;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+      .history-date {
+        color: #5b6673;
+        font-size: 12px;
+        margin-top: 4px;
+      }
+      .history-actions {
+        display: flex;
+        gap: 6px;
+        justify-content: flex-end;
+        margin-top: 8px;
+      }
+      .history-action-btn {
+        border: 1px solid #d7dce3;
+        background: #fff;
+        color: #33404f;
+        font-size: 11px;
+        padding: 3px 8px;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      .history-action-btn:hover {
+        background: #f1f4f8;
+      }
+      .history-action-btn-danger {
+        color: #b3261e;
+        border-color: #f0d3d1;
+      }
+      .history-action-btn-danger:hover {
+        background: #fdf0ef;
+      }
+      .hidden {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header class="page-header">
+        <h1>Application History</h1>
+        <p>A local record of job applications you've submitted, newest first. Nothing is uploaded or shared.</p>
+      </header>
+
+      <p id="emptyState" class="empty-state hidden">No applications recorded yet.</p>
+      <ul id="historyList" class="history-list"></ul>
+    </div>
+
+    <script src="application-history-storage.js"></script>
+    <script src="history.js"></script>
+  </body>
+</html>

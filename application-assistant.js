@@ -225,6 +225,54 @@
     return style.visibility !== "hidden" && style.display !== "none";
   }
 
+  // Roles/attributes that mark a control as dropdown/combobox-style rather
+  // than a plain text field. role="combobox" covers native ARIA comboboxes
+  // and React Select (which sets it directly on its underlying <input>);
+  // aria-haspopup="listbox" and aria-autocomplete="list" catch widgets that
+  // expose the same behavior without that exact role; the class-name
+  // pattern is a fallback for ATS widgets/libraries that skip ARIA
+  // attributes but follow a recognizable naming convention (react-select,
+  // select2, etc.). Best-effort by nature — see isDropdownLikeControl.
+  const DROPDOWN_ROLE_VALUES = new Set(["combobox", "listbox"]);
+  const DROPDOWN_CLASS_PATTERN = /(?:^|[-_ ])(?:react-select|select2|combobox|listbox)(?:[-_ ]|$)/i;
+
+  /**
+   * Manual "+" fallback scope guard (temporary, deliberately narrow): that
+   * fallback works by typing a plain value straight into the control, which
+   * doesn't hold for dropdown/combobox-style widgets — picking a value
+   * there means opening a popup and clicking an option, an interaction the
+   * "+" flow doesn't support. Rather than show a badge that looks like it
+   * should work but doesn't, dropdown-like controls are skipped entirely
+   * until manual mapping for them gets its own design. Checks the control
+   * itself and a few ancestor levels, since combobox roles/classes are as
+   * often set on a wrapping container as on the input.
+   * @param {HTMLElement} input
+   * @returns {boolean}
+   */
+  function isDropdownLikeControl(input) {
+    if (input.tagName === "SELECT") {
+      return true;
+    }
+    let el = input;
+    for (let depth = 0; el instanceof Element && depth < 4; depth += 1) {
+      const role = (el.getAttribute("role") || "").toLowerCase();
+      if (DROPDOWN_ROLE_VALUES.has(role)) {
+        return true;
+      }
+      if ((el.getAttribute("aria-haspopup") || "").toLowerCase() === "listbox") {
+        return true;
+      }
+      if ((el.getAttribute("aria-autocomplete") || "").toLowerCase() === "list") {
+        return true;
+      }
+      if (typeof el.className === "string" && DROPDOWN_CLASS_PATTERN.test(el.className)) {
+        return true;
+      }
+      el = el.parentElement;
+    }
+    return false;
+  }
+
   /**
    * Scores pre-computed signals against FIELD_RULES.
    * @param {object} signals from getSignals()
@@ -441,6 +489,47 @@
     return overlayContainer;
   }
 
+  const BADGE_SIZE = 20;
+  // Gap kept between a field's right edge and its badge, so the badge
+  // never touches — let alone overlaps — the field's border.
+  const BADGE_GAP = 8;
+
+  /**
+   * Shared visual base for every badge type (⚡ fill / ? ambiguous / +
+   * manual). Only color, border, and symbol vary between them — size,
+   * shape, and positioning are identical so they read as one consistent
+   * system regardless of field type.
+   * @param {string} symbol
+   * @param {string} title
+   * @param {Record<string, string>} colorStyles
+   * @returns {HTMLButtonElement}
+   */
+  function createBadgeElement(symbol, title, colorStyles) {
+    const badge = document.createElement("button");
+    badge.type = "button";
+    badge.textContent = symbol;
+    badge.title = title;
+    applyStyles(badge, {
+      position: "absolute",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      width: `${BADGE_SIZE}px`,
+      height: `${BADGE_SIZE}px`,
+      padding: "0",
+      margin: "0",
+      borderRadius: "50%",
+      fontSize: "12px",
+      fontWeight: "700",
+      fontFamily: "Arial, sans-serif",
+      cursor: "pointer",
+      boxShadow: "0 1px 4px rgba(0,0,0,0.3)",
+      textAlign: "center",
+      ...colorStyles
+    });
+    return badge;
+  }
+
   /**
    * @param {HTMLInputElement | HTMLTextAreaElement} input
    * @param {string} key
@@ -449,26 +538,10 @@
   function attachBadge(input, key, value) {
     const container = ensureOverlayContainer();
 
-    const badge = document.createElement("button");
-    badge.type = "button";
-    badge.textContent = "⚡";
-    badge.title = "Fill from active profile";
-    applyStyles(badge, {
-      position: "absolute",
-      width: "20px",
-      height: "20px",
-      lineHeight: "18px",
-      padding: "0",
-      margin: "0",
+    const badge = createBadgeElement("⚡", "Fill from active profile", {
       border: "1px solid #0a66c2",
-      borderRadius: "50%",
       background: "#ffffff",
-      color: "#0a66c2",
-      fontSize: "12px",
-      fontFamily: "Arial, sans-serif",
-      cursor: "pointer",
-      boxShadow: "0 1px 4px rgba(0,0,0,0.3)",
-      textAlign: "center"
+      color: "#0a66c2"
     });
     badge.addEventListener("click", (event) => {
       event.preventDefault();
@@ -484,23 +557,121 @@
   }
 
   /**
+   * Single reusable positioning rule shared by every badge type: always
+   * outside the field's right edge, never inside it or on its left, and
+   * vertically centered on it — regardless of the field's own height
+   * (input, textarea, select, or a container wrapping a custom dropdown /
+   * radio group / checkbox group).
+   * @param {HTMLElement} badge
+   * @param {HTMLElement} field
+   */
+  function positionBadgeOutsideRight(badge, field) {
+    if (!field.isConnected) {
+      badge.style.display = "none";
+      return;
+    }
+    const rect = field.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) {
+      badge.style.display = "none";
+      return;
+    }
+    badge.style.display = "flex";
+    const centerY = rect.top + window.scrollY + rect.height / 2;
+    const left = rect.right + window.scrollX + BADGE_GAP;
+    badge.style.top = `${Math.max(0, centerY - BADGE_SIZE / 2)}px`;
+    badge.style.left = `${Math.max(0, left)}px`;
+  }
+
+  /**
    * @param {{ input: HTMLElement, badge: HTMLElement }} entry
    */
   function positionBadge(entry) {
-    if (!entry.input.isConnected) {
-      entry.badge.style.display = "none";
+    if (entry.manual && isDropdownLikeControl(entry.input)) {
+      // A framework can hydrate a plain input into a combobox/dropdown
+      // widget after the initial scan already attached a manual badge to
+      // it (ARIA role/class added post-mount). Tear it down here rather
+      // than reposition it — this runs on every scroll/resize/mutation
+      // recheck, so it catches that case even though attachManualBadge's
+      // own guard only sees the field's state at attach time.
+      removeManualBadge(entry);
       return;
     }
-    const rect = entry.input.getBoundingClientRect();
-    if (rect.width === 0 && rect.height === 0) {
-      entry.badge.style.display = "none";
-      return;
+    positionBadgeOutsideRight(entry.badge, entry.input);
+  }
+
+  /**
+   * @param {{ input: HTMLElement, badge: HTMLElement }} entry
+   */
+  function removeManualBadge(entry) {
+    entry.badge.remove();
+    const index = registry.indexOf(entry);
+    if (index !== -1) {
+      registry.splice(index, 1);
     }
-    entry.badge.style.display = "block";
-    const top = rect.top + window.scrollY + rect.height / 2 - 10;
-    const left = rect.left + window.scrollX + rect.width - 26;
-    entry.badge.style.top = `${Math.max(0, top)}px`;
-    entry.badge.style.left = `${Math.max(0, left)}px`;
+  }
+
+  /**
+   * Reusable secondary/primary confirm row for the small in-page prompts
+   * (e.g. "Always use X for this field on this domain?"). Flexbox only —
+   * no absolute positioning. Each button is `flex: 1 1 auto` with a
+   * minimum width, so the row wraps the primary button onto its own line
+   * once the panel is too narrow to fit both, instead of letting them
+   * overlap or clip a long/translated label.
+   * @param {{ secondaryLabel: string, primaryLabel: string, onSecondary: () => void, onPrimary: () => void }} options
+   * @returns {HTMLElement}
+   */
+  function createConfirmActions({ secondaryLabel, primaryLabel, onSecondary, onPrimary }) {
+    const actions = document.createElement("div");
+    applyStyles(actions, {
+      display: "flex",
+      flexWrap: "wrap",
+      alignItems: "stretch",
+      justifyContent: "center",
+      gap: "12px",
+      width: "100%"
+    });
+
+    const baseButtonStyle = {
+      flex: "1 1 auto",
+      minWidth: "112px",
+      boxSizing: "border-box",
+      padding: "8px 14px",
+      borderRadius: "8px",
+      cursor: "pointer",
+      font: "inherit",
+      fontSize: "12px",
+      fontWeight: "700",
+      lineHeight: "1.3",
+      whiteSpace: "normal",
+      overflowWrap: "anywhere",
+      textAlign: "center"
+    };
+
+    const secondaryBtn = document.createElement("button");
+    secondaryBtn.type = "button";
+    secondaryBtn.textContent = secondaryLabel;
+    applyStyles(secondaryBtn, {
+      ...baseButtonStyle,
+      background: "#ffffff",
+      color: "#0a66c2",
+      border: "1px solid #0a66c2"
+    });
+    secondaryBtn.addEventListener("click", onSecondary);
+    actions.appendChild(secondaryBtn);
+
+    const primaryBtn = document.createElement("button");
+    primaryBtn.type = "button";
+    primaryBtn.textContent = primaryLabel;
+    applyStyles(primaryBtn, {
+      ...baseButtonStyle,
+      background: "#0a66c2",
+      color: "#ffffff",
+      border: "1px solid #0a66c2"
+    });
+    primaryBtn.addEventListener("click", onPrimary);
+    actions.appendChild(primaryBtn);
+
+    return actions;
   }
 
   /**
@@ -521,27 +692,10 @@
   function attachAmbiguousBadge(input, guessKey, guessValue, identifier, rawLabel, domain, domainMappings, profile) {
     const container = ensureOverlayContainer();
 
-    const badge = document.createElement("button");
-    badge.type = "button";
-    badge.textContent = "?";
-    badge.title = "Click to confirm which profile field this is";
-    applyStyles(badge, {
-      position: "absolute",
-      width: "20px",
-      height: "20px",
-      lineHeight: "18px",
-      padding: "0",
-      margin: "0",
+    const badge = createBadgeElement("?", "Click to confirm which profile field this is", {
       border: "1px solid #c77700",
-      borderRadius: "50%",
       background: "#fff8ec",
-      color: "#c77700",
-      fontSize: "12px",
-      fontWeight: "700",
-      fontFamily: "Arial, sans-serif",
-      cursor: "pointer",
-      boxShadow: "0 1px 4px rgba(0,0,0,0.3)",
-      textAlign: "center"
+      color: "#c77700"
     });
 
     const entry = { input, badge, key: guessKey, value: guessValue, pending: true };
@@ -858,31 +1012,20 @@
    * @param {object} profile
    */
   function attachManualBadge(input, identifier, rawLabel, domain, domainMappings, profile) {
+    if (isDropdownLikeControl(input)) {
+      // Out of scope for now — see isDropdownLikeControl. No badge, no
+      // dataset marker: leaving ljeManual unset means a later rescan (the
+      // field's role/class can still be added post-hydration) checks this
+      // guard again instead of assuming the earlier "skip" still holds.
+      return;
+    }
     input.dataset.ljeManual = "1";
     const container = ensureOverlayContainer();
 
-    const badge = document.createElement("button");
-    badge.type = "button";
-    badge.textContent = "+";
-    badge.title = "Not recognized — click to fill manually from your profile";
-    applyStyles(badge, {
-      position: "absolute",
-      width: "16px",
-      height: "16px",
-      lineHeight: "14px",
-      padding: "0",
-      margin: "0",
+    const badge = createBadgeElement("+", "Not recognized — click to fill manually from your profile", {
       border: "1px solid #9aa5b1",
-      borderRadius: "50%",
       background: "#f3f5f8",
-      color: "#5b6673",
-      fontSize: "11px",
-      fontWeight: "700",
-      fontFamily: "Arial, sans-serif",
-      cursor: "pointer",
-      boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-      textAlign: "center",
-      opacity: "0.85"
+      color: "#5b6673"
     });
 
     const entry = { input, badge, key: null, value: "", pending: true, manual: true };
@@ -910,8 +1053,9 @@
     const panel = document.createElement("div");
     applyStyles(panel, {
       position: "absolute",
-      minWidth: "210px",
-      maxWidth: "260px",
+      boxSizing: "border-box",
+      minWidth: "240px",
+      maxWidth: "300px",
       background: "#ffffff",
       border: "1px solid #d8dee6",
       borderRadius: "8px",
@@ -1003,45 +1147,17 @@
 
     const title = document.createElement("p");
     title.textContent = `Always use ${fieldLabel} for this field on this domain?`;
-    applyStyles(title, { margin: "0 0 10px", lineHeight: "1.4" });
+    applyStyles(title, { margin: "0 0 12px", lineHeight: "1.4", overflowWrap: "anywhere" });
     panel.appendChild(title);
 
-    const actions = document.createElement("div");
-    applyStyles(actions, { display: "flex", gap: "8px" });
-
-    const noBtn = document.createElement("button");
-    noBtn.type = "button";
-    noBtn.textContent = "No, just once";
-    applyStyles(noBtn, {
-      background: "#ffffff",
-      color: "#0a66c2",
-      border: "1px solid #0a66c2",
-      borderRadius: "6px",
-      padding: "6px 10px",
-      cursor: "pointer",
-      font: "inherit",
-      fontSize: "12px"
-    });
-    noBtn.addEventListener("click", () => resolveManualPick(entry, ctx, profileField, { persist: false }));
-    actions.appendChild(noBtn);
-
-    const yesBtn = document.createElement("button");
-    yesBtn.type = "button";
-    yesBtn.textContent = "Yes, remember it";
-    applyStyles(yesBtn, {
-      background: "#0a66c2",
-      color: "#ffffff",
-      border: "1px solid #0a66c2",
-      borderRadius: "6px",
-      padding: "6px 10px",
-      cursor: "pointer",
-      font: "inherit",
-      fontSize: "12px"
-    });
-    yesBtn.addEventListener("click", () => resolveManualPick(entry, ctx, profileField, { persist: true }));
-    actions.appendChild(yesBtn);
-
-    panel.appendChild(actions);
+    panel.appendChild(
+      createConfirmActions({
+        secondaryLabel: "Just Once",
+        primaryLabel: "Always Remember",
+        onSecondary: () => resolveManualPick(entry, ctx, profileField, { persist: false }),
+        onPrimary: () => resolveManualPick(entry, ctx, profileField, { persist: true })
+      })
+    );
   }
 
   /**
