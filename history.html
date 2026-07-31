@@ -76,16 +76,21 @@
         text-align: right;
         white-space: nowrap;
       }
-      .history-status {
+      .history-status-select {
         display: inline-block;
-        padding: 2px 8px;
+        padding: 3px 8px;
+        border: none;
         border-radius: 999px;
-        background: #eaf6ee;
-        color: #137333;
         font-size: 11px;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.03em;
+        font-family: inherit;
+        cursor: pointer;
+      }
+      .history-status-select:focus {
+        outline: 2px solid #1a56db;
+        outline-offset: 1px;
       }
       .history-date {
         color: #5b6673;
@@ -134,6 +139,7 @@
     </div>
 
     <script src="application-history-storage.js"></script>
+    <script src="status-config.js"></script>
     <script src="history.js"></script>
   </body>
 </html>

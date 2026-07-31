@@ -311,7 +311,6 @@
         position: capturedContext.position,
         jobUrl: capturedContext.jobUrl,
         domain: capturedContext.domain,
-        status: "Applied",
         source: "auto",
         resume: documentTracker ? documentTracker.getLatest("resume") : null,
         coverLetter: documentTracker ? documentTracker.getLatest("coverLetter") : null

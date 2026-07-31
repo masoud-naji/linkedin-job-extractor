@@ -1,9 +1,10 @@
 /**
- * Phase 4 — Application History (Foundation).
+ * Phase 4 — Application History (Foundation), extended by later phases
+ * (5/6 — resume/cover-letter attribution, 7 — status tracking) in place.
  *
  * A local-only record of job applications the user has submitted, so
- * future phases (status tracking, resume/cover-letter attribution, CSV or
- * Google Sheets export) have a stable data model to build on.
+ * future phases (CSV or Google Sheets export, etc.) have a stable data
+ * model to build on.
  *
  * Completely independent of the Profile Manager, Smart Mapping, and
  * Application Assistant: this module knows nothing about profiles, field
@@ -26,6 +27,31 @@
     return `app-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   }
 
+  // Phase 7 default — kept as a plain literal (not read from
+  // status-config.js) since this module is also injected standalone into
+  // arbitrary pages by the tracker, where status-config.js is never
+  // loaded. status-config.js's own DEFAULT_STATUS is the one the History
+  // UI actually reads from; this is only a data-integrity fallback.
+  const DEFAULT_STATUS = "Applied";
+
+  /**
+   * Migrates a legacy plain-string `status` (Phase 4-6) into the Phase 7
+   * object shape `{ current, updatedAt }` on read, so already-saved
+   * records don't need an explicit one-time migration step. An object
+   * that's already in the new shape passes through untouched.
+   * @param {object} record
+   * @returns {{ current: string, updatedAt: string }}
+   */
+  function normalizeStatus(record) {
+    const status = record ? record.status : null;
+    if (status && typeof status === "object" && typeof status.current === "string") {
+      return status;
+    }
+    const current = typeof status === "string" && status ? status : DEFAULT_STATUS;
+    const updatedAt = (record && (record.lastSeen || record.appliedAt)) || new Date().toISOString();
+    return { current, updatedAt };
+  }
+
   function readState() {
     return new Promise((resolve, reject) => {
       chrome.storage.local.get([STORAGE_KEY], (result) => {
@@ -34,7 +60,8 @@
           return;
         }
         const stored = result?.[STORAGE_KEY];
-        resolve(Array.isArray(stored) ? stored : []);
+        const records = Array.isArray(stored) ? stored : [];
+        resolve(records.map((record) => ({ ...record, status: normalizeStatus(record) })));
       });
     });
   }
@@ -68,7 +95,7 @@
       domain: "",
       appliedAt: now,
       lastSeen: now,
-      status: "Applied",
+      status: { current: DEFAULT_STATUS, updatedAt: now },
       notes: "",
       resume: null,
       coverLetter: null,
@@ -203,15 +230,22 @@
   /**
    * Upserts one application record by job URL. If a record already
    * exists for this job, no duplicate is created — only `lastSeen` (and
-   * `status`, `resume`, `coverLetter`, if provided) are updated. Otherwise
-   * a new record is appended with the given fields plus empty placeholders
-   * for not-yet-implemented data (salary, interviewStatus, etc.).
+   * `resume`/`coverLetter`, if provided) are updated. Otherwise a new
+   * record is appended with the given fields plus empty placeholders for
+   * not-yet-implemented data (salary, interviewStatus, etc.).
+   *
+   * Status is deliberately untouched here, on both the create and update
+   * paths beyond its Phase-7 default of "Applied" — status tracking is
+   * purely manual (via updateStatus/the History page dropdown), so an
+   * automatic re-detection of an already-submitted application must never
+   * silently reset a status the user has since moved forward (e.g. back
+   * to "Applied" after they'd already marked it "Rejected").
    *
    * `resume`/`coverLetter`, if given, are only ever *metadata* —
    * { id, name, filename, uploadedAt } — never file contents. Omitting
    * either (or passing null, e.g. nothing was detected on the page this
    * time) leaves an existing record's value as-is rather than clearing it.
-   * @param {{ company: string, position: string, jobUrl: string, domain: string, status?: string, source?: string, resume?: object|null, coverLetter?: object|null }} fields
+   * @param {{ company: string, position: string, jobUrl: string, domain: string, source?: string, resume?: object|null, coverLetter?: object|null }} fields
    */
   async function recordApplication(fields) {
     if (!fields || !fields.jobUrl) {
@@ -226,7 +260,6 @@
       records[existingIndex] = {
         ...records[existingIndex],
         lastSeen: now,
-        status: fields.status || records[existingIndex].status,
         resume: fields.resume || records[existingIndex].resume,
         coverLetter: fields.coverLetter || records[existingIndex].coverLetter
       };
@@ -239,7 +272,6 @@
       position: fields.position || "",
       jobUrl: fields.jobUrl,
       domain: fields.domain || "",
-      status: fields.status || "Applied",
       source: fields.source || "auto",
       resume: fields.resume || null,
       coverLetter: fields.coverLetter || null,
@@ -249,6 +281,27 @@
     records.push(record);
     await writeState(records);
     return record;
+  }
+
+  /**
+   * Phase 7 — the one entry point allowed to change an application's
+   * status. Touches only `status.current`/`status.updatedAt`; every other
+   * field is left exactly as it was, per spec.
+   * @param {string} id
+   * @param {string} statusValue one of status-config.js's STATUSES
+   */
+  async function updateStatus(id, statusValue) {
+    const records = await readState();
+    const index = records.findIndex((record) => record.id === id);
+    if (index === -1) {
+      throw new Error("Application record not found.");
+    }
+    records[index] = {
+      ...records[index],
+      status: { current: statusValue, updatedAt: new Date().toISOString() }
+    };
+    await writeState(records);
+    return records[index];
   }
 
   /**
@@ -284,6 +337,7 @@
     findByJobUrl,
     recordApplication,
     updateApplication,
+    updateStatus,
     deleteApplication,
     resetAll,
     normalizeJobUrl,

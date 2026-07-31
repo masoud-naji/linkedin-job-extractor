@@ -96,10 +96,7 @@
     const meta = document.createElement("div");
     meta.className = "history-meta";
 
-    const status = document.createElement("span");
-    status.className = "history-status";
-    status.textContent = record.status || "Applied";
-    meta.appendChild(status);
+    meta.appendChild(buildStatusSelect(record));
 
     const date = document.createElement("div");
     date.className = "history-date";
@@ -168,6 +165,61 @@
     } catch (_error) {
       // Non-fatal — the list just won't reflect the deletion.
     }
+  }
+
+  /**
+   * Phase 7 — a status dropdown, not a fixed badge: picking a value saves
+   * immediately (no Save button), and its colors come from
+   * status-config.js so the badge and the dropdown itself always agree.
+   * @param {object} record
+   * @returns {HTMLSelectElement}
+   */
+  function buildStatusSelect(record) {
+    const config = window.LJEStatusConfig;
+    const statuses = config ? config.STATUSES : [];
+    const current = (record.status && record.status.current) || (config ? config.DEFAULT_STATUS : "Applied");
+
+    const select = document.createElement("select");
+    select.className = "history-status-select";
+
+    // Guard against a status value that predates a future STATUSES change
+    // (or the config module failing to load) still being selectable/visible
+    // rather than silently vanishing from the dropdown.
+    const optionValues = statuses.includes(current) ? statuses : [current, ...statuses];
+    optionValues.forEach((statusValue) => {
+      const option = document.createElement("option");
+      option.value = statusValue;
+      option.textContent = statusValue;
+      select.appendChild(option);
+    });
+    select.value = current;
+    applyStatusColors(select, current);
+
+    select.addEventListener("change", async () => {
+      const newValue = select.value;
+      applyStatusColors(select, newValue);
+      try {
+        await store.updateStatus(record.id, newValue);
+      } catch (_error) {
+        // Non-fatal — the dropdown already reflects the chosen value.
+      }
+    });
+
+    return select;
+  }
+
+  /**
+   * @param {HTMLSelectElement} select
+   * @param {string} statusValue
+   */
+  function applyStatusColors(select, statusValue) {
+    const config = window.LJEStatusConfig;
+    const colors = config ? config.getStatusColors(statusValue) : null;
+    if (!colors) {
+      return;
+    }
+    select.style.backgroundColor = colors.background;
+    select.style.color = colors.color;
   }
 
   /**
