@@ -8,10 +8,25 @@
   const EXTRACTION_DEBOUNCE_MS = 400;
   const DESCRIPTION_EXPAND_WAIT_MS = 500;
   const EXPANDABLE_TEXT_BOX_SELECTOR = '[data-testid="expandable-text-box"]';
-  const JOB_URL_PATTERNS = [
-    /^https:\/\/www\.linkedin\.com\/jobs\/view\//i,
-    /^https:\/\/www\.linkedin\.com\/jobs\/search\//i
+  // Bounded retry for the SPA "search" layout, where LinkedIn can update
+  // currentJobId in the URL slightly before the center detail pane finishes
+  // re-rendering the newly selected job's content.
+  const MAX_SEARCH_MODE_RETRIES = 6;
+  const SEARCH_MODE_RETRY_DELAY_MS = 200;
+  // Candidate containers for the center "selected job" pane on LinkedIn's
+  // multi-column jobs search layout, most specific first. `.jobs-search__job-details`
+  // is also relied on by watchDomChanges below as a known search-mode container.
+  const ACTIVE_DETAIL_ROOT_SELECTORS = [
+    ".jobs-search__job-details--wrapper",
+    ".jobs-search__job-details",
+    ".jobs-details__main-content",
+    ".jobs-details",
+    ".scaffold-layout__detail",
+    "[data-testid='job-details']"
   ];
+  const RELEVANT_MUTATION_SELECTOR = [
+    "main", "article", "section", "[role='main']", ...ACTIVE_DETAIL_ROOT_SELECTORS
+  ].join(", ");
   // A single compensation amount, e.g. "$123,000", "$123K/yr", "$215.2K/yr".
   const SALARY_AMOUNT_SOURCE = "(?:\\$|€|£|₹)\\s?\\d[\\d,.]*\\s?(?:k|K)?(?:\\s?(?:USD|CAD|EUR|GBP|AUD))?(?:\\s?(?:/yr|/hr|/hour|/mo|per\\s+year|per\\s+annum|per\\s+hour|per\\s+month|a\\s+year|a\\s+month|hourly|annually))?";
   // A single amount or a full range ("$123K/yr - $215.2K/yr"), preserving the
@@ -84,6 +99,12 @@
   let debounceTimer = 0;
   let descriptionExpandAttemptedForUrl = "";
   let domObserver = null;
+  // The element extraction is currently scoped to: `document` on a standalone
+  // `/jobs/view/` page, or the selected job's detail pane on the multi-column
+  // `/jobs/search(-results)/` layout. Read via the default `root` parameter on
+  // safeQuerySelector/safeQuerySelectorAll/getText/etc so every existing
+  // extractor is scoped without threading a root argument through each call.
+  let activeRoot = document;
 
   // Per-extraction diagnostics accumulator. Field extractors record how each
   // value was resolved (strategy, selector, raw value) as they run, and
@@ -233,15 +254,52 @@
     return normalizeFormattedText(parts.join(""));
   }
 
+  // Confirmed via live DOM inspection: each card in the search results list
+  // carries `componentkey="job-card-component-ref-{id}"` on its clickable
+  // wrapper. `data-occludable-job-id` is kept alongside it since some other
+  // LinkedIn layouts do use that attribute, but it's absent on this one —
+  // relying on it alone left isInsideResultsListCard permanently false here.
+  const RESULTS_LIST_CARD_SELECTOR = "[componentkey^='job-card-component-ref-'], [data-occludable-job-id]";
+
   /**
-   * Safely reads text from the first selector that returns useful content.
+   * True when an element sits inside a LinkedIn job-list card, identified
+   * structurally (see RESULTS_LIST_CARD_SELECTOR) rather than by a guessed
+   * container class name. Used to keep every field lookup below out of the
+   * left-column results list even if the resolved extraction root ends up
+   * broader than intended.
+   * @param {Element | null | undefined} element
+   * @returns {boolean}
+   */
+  function isInsideResultsListCard(element) {
+    return Boolean(element?.closest?.(RESULTS_LIST_CARD_SELECTOR));
+  }
+
+  /**
+   * True when an element contains 2+ job-list cards, i.e. it's the results
+   * list (or a wrapper spanning both the list and the detail pane) rather
+   * than the detail pane alone.
+   * @param {ParentNode | null | undefined} element
+   * @returns {boolean}
+   */
+  function containsMultipleListCards(element) {
+    if (!element) {
+      return false;
+    }
+    return safeQuerySelectorAll(RESULTS_LIST_CARD_SELECTOR, element).length >= 2;
+  }
+
+  /**
+   * Safely reads text from the first selector that returns useful content,
+   * skipping any match that lands inside a results-list card (see
+   * isInsideResultsListCard) so a selector that's too broad for the current
+   * root still can't silently return another job's data.
    * @param {string[]} selectors
    * @param {ParentNode} [root]
    * @returns {string}
    */
-  function getText(selectors, root = document) {
+  function getText(selectors, root = activeRoot) {
     for (const selector of selectors) {
-      const element = safeQuerySelector(selector, root);
+      const element = safeQuerySelectorAll(selector, root).find((candidate) => !isInsideResultsListCard(candidate));
       const text = cleanText(element?.textContent);
       if (text) {
         return text;
@@ -255,7 +313,7 @@
    * @param {ParentNode} root
    * @returns {Element | null}
    */
-  function safeQuerySelector(selector, root = document) {
+  function safeQuerySelector(selector, root = activeRoot) {
     try {
       return root.querySelector(selector);
     } catch (_error) {
@@ -268,7 +326,7 @@
    * @param {ParentNode} root
    * @returns {Element[]}
    */
-  function safeQuerySelectorAll(selector, root = document) {
+  function safeQuerySelectorAll(selector, root = activeRoot) {
     try {
       return Array.from(root.querySelectorAll(selector));
     } catch (_error) {
@@ -282,12 +340,12 @@
    * @param {ParentNode} [root]
    * @returns {Element | null}
    */
-  function findElementByText(textOptions, root = document) {
+  function findElementByText(textOptions, root = activeRoot) {
     const normalizedOptions = textOptions.map((text) => text.toLowerCase());
     const candidates = safeQuerySelectorAll("h1, h2, h3, h4, h5, button, span, div, dt, p", root);
 
     return candidates.find((element) => {
-      if (!isVisible(element)) {
+      if (!isVisible(element) || isInsideResultsListCard(element)) {
         return false;
       }
       const text = cleanText(element.textContent).toLowerCase();
@@ -301,7 +359,7 @@
    * @param {ParentNode} [root]
    * @returns {string}
    */
-  function getTextByHeading(headingTexts, root = document) {
+  function getTextByHeading(headingTexts, root = activeRoot) {
     const heading = findElementByText(headingTexts, root);
     if (!heading) {
       return "";
@@ -358,6 +416,19 @@
   }
 
   /**
+   * Reads the text content of the active extraction root, matching the
+   * `document.body?.textContent` shape callers used before root-scoping was
+   * introduced (the whole page in standalone mode, just the selected job's
+   * detail pane in search mode).
+   * @param {ParentNode | null} root
+   * @returns {string}
+   */
+  function getRootText(root) {
+    const node = !root || root === document ? document.body : root;
+    return cleanText(node?.textContent || "");
+  }
+
+  /**
    * Normalizes heading text for comparison: collapses whitespace, trims, and
    * lowercases so matching ignores case and spacing differences.
    * @param {string | null | undefined} value
@@ -392,7 +463,7 @@
 
     const candidates = safeQuerySelectorAll("h1, h2, h3, h4, div, span, strong");
     for (const candidate of candidates) {
-      if (!isVisible(candidate)) {
+      if (!isVisible(candidate) || isInsideResultsListCard(candidate)) {
         continue;
       }
 
@@ -418,18 +489,31 @@
   }
 
   /**
-   * Walks up from a heading to the nearest container that also holds the
-   * section's body content (the description box or meaningful extra text),
-   * without climbing all the way up to <main> or <body>.
-   * @param {Element} heading
+   * Walks up from a starting element to the nearest ancestor that also holds
+   * substantial additional content — either it contains the expandable job
+   * description box, or its own text is meaningfully longer than the
+   * starting element's alone. This is layout/class-name independent: it
+   * only needs *a* starting element (a heading, or any other stable anchor
+   * point) and finds the right container by how much content each ancestor
+   * level adds, not by guessing a wrapper's class name.
+   * @param {Element} start
+   * @param {number} maxDepth
+   * @param {number} [growthThreshold] how many more characters an ancestor
+   *   needs over `start` before it counts as "substantial" — small (~40) to
+   *   find a heading's own section body; larger to skip past a title's
+   *   immediate metadata row and reach a much bigger container like a full
+   *   detail pane.
    * @returns {Element | null}
    */
-  function resolveHeadingSection(heading) {
-    const headingLength = normalizeHeading(heading.textContent).length;
-    let current = heading.parentElement;
+  function climbToSubstantialContainer(start, maxDepth, growthThreshold = 40) {
+    if (!start) {
+      return null;
+    }
+    const startLength = normalizeHeading(start.textContent).length;
+    let current = start.parentElement;
     let depth = 0;
 
-    while (current && depth < 6) {
+    while (current && depth < maxDepth) {
       const tag = current.tagName.toLowerCase();
       if (tag === "body" || tag === "main") {
         break;
@@ -437,7 +521,7 @@
 
       const hasExpandable = Boolean(current.querySelector(EXPANDABLE_TEXT_BOX_SELECTOR));
       const bodyLength = normalizeHeading(current.textContent).length;
-      if (hasExpandable || bodyLength > headingLength + 40) {
+      if (hasExpandable || bodyLength > startLength + growthThreshold) {
         return current;
       }
 
@@ -445,7 +529,20 @@
       depth += 1;
     }
 
-    return heading.closest("section, article, div") || heading.parentElement;
+    return null;
+  }
+
+  /**
+   * Walks up from a heading to the nearest container that also holds the
+   * section's body content (the description box or meaningful extra text),
+   * without climbing all the way up to <main> or <body>.
+   * @param {Element} heading
+   * @returns {Element | null}
+   */
+  function resolveHeadingSection(heading) {
+    return climbToSubstantialContainer(heading, 6) ||
+      heading.closest("section, article, div") ||
+      heading.parentElement;
   }
 
   /**
@@ -546,16 +643,19 @@
    * @returns {string}
    */
   function getHeaderBadgeText() {
-    const title = safeQuerySelector("main h1, article h1, h1");
+    const title = safeQuerySelectorAll("main h1, article h1, h1").find((candidate) => !isInsideResultsListCard(candidate));
     const topCard = title?.closest("section, article") ||
       safeQuerySelector("main, article") ||
-      document.body;
+      activeRoot;
     if (!topCard) {
       return "";
     }
 
     const badges = new Set();
     safeQuerySelectorAll("li, span, button, [data-testid], [aria-label]", topCard).forEach((node) => {
+      if (isInsideResultsListCard(node)) {
+        return;
+      }
       const aria = cleanText(node.getAttribute?.("aria-label"));
       if (aria && aria.length <= 60) {
         badges.add(aria);
@@ -606,16 +706,16 @@
    * @returns {"Remote" | "Hybrid" | "On-site" | "Unknown"}
    */
   function findWorkplacePill() {
-    const title = safeQuerySelector("main h1, article h1, h1");
+    const title = safeQuerySelectorAll("main h1, article h1, h1").find((candidate) => !isInsideResultsListCard(candidate));
     const topCard = title?.closest("section, article") ||
       safeQuerySelector("main, article") ||
-      document.body;
+      activeRoot;
     if (!topCard) {
       return "Unknown";
     }
     const nodes = safeQuerySelectorAll("li, span, button, div, p", topCard);
     for (const node of nodes) {
-      if (node.childElementCount > 0) {
+      if (node.childElementCount > 0 || isInsideResultsListCard(node)) {
         continue;
       }
       const text = cleanText(node.textContent);
@@ -704,11 +804,183 @@
   }
 
   /**
-   * @param {string} url
+   * Determines the active LinkedIn job context from a URL: a standalone
+   * `/jobs/view/{id}` page, or a `/jobs/search(-results)/` page with a
+   * `currentJobId` query param selecting a job in the center detail pane.
+   * Both resolve to the same shape so downstream code doesn't need to branch
+   * on mode except to decide how to locate the extraction root.
+   * @param {string} [url]
+   * @returns {{ isLinkedInJob: boolean, jobId: string, mode: "standalone" | "search" | null }}
+   */
+  function getLinkedInJobContext(url) {
+    let parsed;
+    try {
+      parsed = new URL(url || window.location.href);
+    } catch (_error) {
+      return { isLinkedInJob: false, jobId: "", mode: null };
+    }
+
+    if (!parsed.hostname.endsWith("linkedin.com")) {
+      return { isLinkedInJob: false, jobId: "", mode: null };
+    }
+
+    const viewMatch = parsed.pathname.match(/\/jobs\/view\/(?:[^/?#]*-)?(\d{5,})/i);
+    if (viewMatch) {
+      return { isLinkedInJob: true, jobId: viewMatch[1], mode: "standalone" };
+    }
+
+    const isSearchPath = /^\/jobs\/(search|search-results)\//i.test(parsed.pathname);
+    const currentJobId = parsed.searchParams.get("currentJobId") || "";
+    if (isSearchPath && currentJobId) {
+      return { isLinkedInJob: true, jobId: currentJobId, mode: "search" };
+    }
+
+    return { isLinkedInJob: false, jobId: "", mode: null };
+  }
+
+  /**
+   * Resolves the active detail pane from a ground-truth anchor point: the
+   * one link on the page pointing at `/jobs/view/{jobId}`. Confirmed via
+   * live DOM inspection (this layout renders no <h1> at all — every guess
+   * that depended on one, and every guessed container class, silently
+   * failed) to sit inside the selected job's own title, nested many levels
+   * below a shared "content grows here" ancestor that also holds the
+   * company name, badges, and the expandable job description. The growth
+   * threshold is set high enough to skip past the immediate metadata row
+   * (title + company + badges, empirically ~200 chars) and stop only once
+   * real body content — the description — is reached.
+   * @param {string} jobId
+   * @returns {Element | null}
+   */
+  function findActiveJobDetailRootViaJobLink(jobId) {
+    if (!jobId) {
+      return null;
+    }
+    const anchor = safeQuerySelector(`a[href*="/jobs/view/${jobId}"]`, document);
+    if (!anchor || isInsideResultsListCard(anchor)) {
+      return null;
+    }
+    return climbToSubstantialContainer(anchor, 20, 300) ||
+      anchor.closest("section, article, div") ||
+      anchor.parentElement;
+  }
+
+  /**
+   * Locates the container for the currently selected job on the multi-column
+   * jobs search layout, scoped away from the left-column result list so
+   * extraction never reads a different job's card (title, company, Easy
+   * Apply badge, etc. all repeat once per card in that list).
+   * @param {string} [jobId]
+   * @returns {Element | null}
+   */
+  function findActiveJobDetailRoot(jobId) {
+    for (const selector of ACTIVE_DETAIL_ROOT_SELECTORS) {
+      const element = safeQuerySelector(selector, document);
+      if (element && isVisible(element) && !containsMultipleListCards(element)) {
+        return element;
+      }
+    }
+
+    // Primary for layouts with no <h1> at all: the /jobs/view/{jobId} link.
+    const viaJobLink = findActiveJobDetailRootViaJobLink(jobId);
+    if (viaJobLink && !containsMultipleListCards(viaJobLink)) {
+      return viaJobLink;
+    }
+
+    // Fallback for an unrecognized layout: the first visible <h1> that isn't
+    // inside a results-list card is almost certainly the selected job's
+    // title. "Inside a card" is decided structurally via
+    // isInsideResultsListCard, not a guessed list container class name.
+    const headings = safeQuerySelectorAll("h1", document);
+    const detailHeading = headings.find((heading) => isVisible(heading) && !isInsideResultsListCard(heading));
+    if (!detailHeading) {
+      return null;
+    }
+
+    // Prefer the same "walk up until the container also holds real body
+    // content" resolution already used for the About-the-job section, so the
+    // root captures the full top card + description, not just a thin title
+    // wrapper div immediately around the <h1>.
+    const resolved = resolveHeadingSection(detailHeading);
+    if (resolved && !containsMultipleListCards(resolved)) {
+      return resolved;
+    }
+
+    const narrow = detailHeading.closest("main, article, section, div") || detailHeading.parentElement;
+    return narrow && !containsMultipleListCards(narrow) ? narrow : detailHeading.parentElement;
+  }
+
+  /**
+   * Guards against extracting from a detail pane that hasn't finished
+   * re-rendering after the user clicked a different job in the results list:
+   * requires a title signal and enough content to look like a real job,
+   * rejects a root that still spans the results list (too broad — see
+   * containsMultipleListCards), and — when the pane exposes a job-id
+   * attribute outside any list card — that it already matches the job the
+   * URL says is selected.
+   *
+   * The title signal is an <h1> OR (for layouts confirmed to render no <h1>
+   * at all) the `/jobs/view/{expectedJobId}` link — requiring only <h1>
+   * here would make this permanently false on such a layout, so
+   * waitForActiveDetailPane would exhaust every retry and fall back to
+   * `document` on every single pass.
+   * @param {Element | null} root
+   * @param {string} expectedJobId
    * @returns {boolean}
    */
-  function isSupportedLinkedInJobUrl(url) {
-    return JOB_URL_PATTERNS.some((pattern) => pattern.test(url));
+  function isActiveDetailPaneReady(root, expectedJobId) {
+    if (!root || containsMultipleListCards(root)) {
+      return false;
+    }
+    const hasTitle = Boolean(getText(["h1"], root)) ||
+      Boolean(expectedJobId && safeQuerySelector(`a[href*="/jobs/view/${expectedJobId}"]`, root));
+    if (!hasTitle || getRootText(root).length < 100) {
+      return false;
+    }
+    if (expectedJobId) {
+      const idNode = safeQuerySelectorAll(
+        "[data-job-id], [data-occludable-job-id], [data-entity-urn*='jobPosting']",
+        root
+      ).find((candidate) => !isInsideResultsListCard(candidate));
+      const idValue = idNode?.getAttribute("data-job-id") ||
+        idNode?.getAttribute("data-occludable-job-id") ||
+        idNode?.getAttribute("data-entity-urn") ||
+        "";
+      if (idValue && !idValue.includes(expectedJobId)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Resolves the extraction root for the given context, waiting briefly (in
+   * search mode only) for the newly selected job's detail pane to finish
+   * rendering. Bounded by MAX_SEARCH_MODE_RETRIES so a permanently broken
+   * pane can't poll forever.
+   * @param {{ mode: "standalone" | "search" | null, jobId: string }} context
+   * @returns {Promise<ParentNode>}
+   */
+  function waitForActiveDetailPane(context) {
+    if (context.mode !== "search") {
+      return Promise.resolve(document);
+    }
+
+    return new Promise((resolve) => {
+      const attempt = (count) => {
+        if (!isExtensionContextValid()) {
+          resolve(findActiveJobDetailRoot(context.jobId) || document);
+          return;
+        }
+        const root = findActiveJobDetailRoot(context.jobId);
+        if (isActiveDetailPaneReady(root, context.jobId) || count >= MAX_SEARCH_MODE_RETRIES) {
+          resolve(root || document);
+          return;
+        }
+        window.setTimeout(() => attempt(count + 1), SEARCH_MODE_RETRY_DELAY_MS);
+      };
+      attempt(0);
+    });
   }
 
   /**
@@ -748,6 +1020,37 @@
   }
 
   /**
+   * The top-card element that owns the job title — narrower than activeRoot,
+   * so a company/salary lookup can't accidentally match an unrelated anchor
+   * or pill elsewhere in the active job's detail pane (e.g. in the
+   * description body or a "People you can reach out to" section).
+   * @returns {ParentNode}
+   */
+  function getTopCardScope() {
+    const title = safeQuerySelectorAll("main h1, article h1, h1").find((candidate) => !isInsideResultsListCard(candidate));
+    return title?.closest("section, article") ||
+      safeQuerySelector("main, article") ||
+      activeRoot;
+  }
+
+  /**
+   * Finds a real company profile anchor (skipping empty logo-only links),
+   * preferring one inside the top card and widening to the rest of the
+   * active root only if that fails. Used both to backfill a companyUrl when
+   * the name came from a text-only selector, and as a page-wide fallback.
+   * @returns {Element | null}
+   */
+  function findCompanyAnchor() {
+    const inTopCard = safeQuerySelectorAll("a[href*='/company/']", getTopCardScope())
+      .find((link) => cleanText(link.textContent) && !isInsideResultsListCard(link));
+    if (inTopCard) {
+      return inTopCard;
+    }
+    return safeQuerySelectorAll("a[href*='/company/']")
+      .find((link) => cleanText(link.textContent) && !isInsideResultsListCard(link)) || null;
+  }
+
+  /**
    * @returns {{ name: string, url: string }}
    */
   function extractCompany() {
@@ -757,13 +1060,26 @@
     const nameFromLink = cleanText(companyLink?.textContent);
     const urlFromLink = normalizeLinkedInUrl(companyLink?.getAttribute("href") || "");
 
-    if (nameFromLink) {
+    // Only trust the primary lookup outright when it produced BOTH a name
+    // and a real linkedin.com/company/ URL from the same anchor. Some of the
+    // broader alternatives in companyLinkSelector (e.g.
+    // a[data-testid*='company'][href]) can match an anchor whose text is the
+    // company name but whose href isn't a company profile link (a "follow"
+    // control, a tracking link, etc.) — returning early on name alone then
+    // permanently locked companyUrl to empty, since nothing downstream ever
+    // got a chance to look for the real company anchor.
+    if (nameFromLink && urlFromLink) {
       recordFieldDiag("companyName", { strategy: "Primary: company link", selector: companyLinkSelector, found: true, raw: nameFromLink });
-      recordFieldDiag("companyUrl", { strategy: "Primary: company link href", selector: companyLinkSelector, found: Boolean(urlFromLink), raw: urlFromLink });
+      recordFieldDiag("companyUrl", { strategy: "Primary: company link href", selector: companyLinkSelector, found: true, raw: urlFromLink });
       return { name: nameFromLink, url: urlFromLink };
     }
 
-    // Fallback: authenticated and guest top-card company-name elements.
+    // Fallback: authenticated and guest top-card company-name elements. This
+    // selector list matches on class name only (no <main>/<article> ancestor
+    // required), so — unlike the primary selector above — it still finds the
+    // name on layouts without those landmarks (e.g. the jobs search detail
+    // pane). Whichever name source won, the URL is backfilled via
+    // findCompanyAnchor() when it isn't already known.
     const nameSelectors = [
       "[data-testid*='company-name']",
       ".jobs-unified-top-card__company-name a",
@@ -774,17 +1090,22 @@
       ".topcard__flavor a",
       ".topcard__flavor"
     ];
-    const name = getText(nameSelectors);
+    const name = nameFromLink || getText(nameSelectors);
     if (name) {
-      recordFieldDiag("companyName", { strategy: "Fallback: top-card selectors", selector: nameSelectors.join(", "), found: true, raw: name });
-      recordFieldDiag("companyUrl", { strategy: urlFromLink ? "Primary: company link href" : "None matched", selector: companyLinkSelector, found: Boolean(urlFromLink), raw: urlFromLink });
-      return { name, url: urlFromLink };
+      const backfilledUrl = urlFromLink || normalizeLinkedInUrl(findCompanyAnchor()?.getAttribute("href") || "");
+      recordFieldDiag("companyName", { strategy: nameFromLink ? "Primary: company link" : "Fallback: top-card selectors", selector: nameSelectors.join(", "), found: true, raw: name });
+      recordFieldDiag("companyUrl", {
+        strategy: backfilledUrl ? (urlFromLink ? "Primary: company link href" : "Fallback: company anchor lookup") : "None matched",
+        selector: companyLinkSelector,
+        found: Boolean(backfilledUrl),
+        raw: backfilledUrl
+      });
+      return { name, url: backfilledUrl };
     }
 
-    // Fallback: any company anchor on the page (new layouts / relative hrefs
-    // that fall outside <main>/<article>). Skips empty logo-only links.
-    const anyCompanyLink = safeQuerySelectorAll("a[href*='/company/']")
-      .find((link) => cleanText(link.textContent));
+    // Fallback: any company anchor within the active root (pane-scoped in
+    // search mode, whole page in standalone). Skips empty logo-only links.
+    const anyCompanyLink = findCompanyAnchor();
     if (anyCompanyLink) {
       const anyName = cleanText(anyCompanyLink.textContent);
       const anyUrl = urlFromLink || normalizeLinkedInUrl(anyCompanyLink.getAttribute("href") || "");
@@ -839,12 +1160,15 @@
    * @returns {string}
    */
   function getHeaderMetaTextByScan() {
-    const scope = safeQuerySelector("main") || safeQuerySelector("article") || document.body;
+    const scope = safeQuerySelector("main") || safeQuerySelector("article") || activeRoot;
     if (!scope) {
       return "";
     }
     const candidates = scope.querySelectorAll("p");
     for (const el of candidates) {
+      if (isInsideResultsListCard(el)) {
+        continue;
+      }
       const text = cleanText(el.textContent || "");
       if (!text || text.length > 200 || !/[·•|]/.test(text)) {
         continue;
@@ -944,7 +1268,7 @@
       return byHeading;
     }
 
-    const pageText = cleanText(document.body?.textContent || "");
+    const pageText = getRootText(activeRoot);
 
     // Fallback: a "City, ST" pattern (US state/territory abbreviation)
     // anywhere in the page text - notably matches phrasing in the job
@@ -1262,6 +1586,18 @@
     if (isValidSalary(fromPill, pillText)) {
       recordFieldDiag("salary", { sourceText: pillText, normalized: fromPill, strategy: "Primary: header salary pill" });
       return fromPill;
+    }
+
+    // Fallback: the same top-card badge/pill row already relied on for
+    // workplace and employment type (see getHeaderBadgeText). Layouts that
+    // render the compensation pill without a recognizable "salary" class or
+    // data-testid (e.g. the jobs search detail pane, where it's a plain pill
+    // alongside "Remote" / "Full-time") still surface it here.
+    const badgeText = getHeaderBadgeText();
+    const fromBadges = firstSalaryMatch(badgeText);
+    if (isValidSalary(fromBadges, badgeText)) {
+      recordFieldDiag("salary", { sourceText: badgeText, normalized: fromBadges, strategy: "Fallback: header badge pill" });
+      return fromBadges;
     }
 
     // Fallback: an explicit compensation / pay-range section.
@@ -1694,7 +2030,10 @@
    */
   function getJobPostingLd() {
     const currentId = extractJobId(window.location.href);
-    const scripts = safeQuerySelectorAll('script[type="application/ld+json"]');
+    // Structured data lives at the page level (head/body), not duplicated per
+    // job card, so this always searches the whole document regardless of
+    // activeRoot; the currentId check below still guards against stale data.
+    const scripts = safeQuerySelectorAll('script[type="application/ld+json"]', document);
     for (const script of scripts) {
       let parsed;
       try {
@@ -1848,10 +2187,11 @@
    * not resolve, so working values are never overridden.
    * @returns {object}
    */
-  function extractJobData() {
+  function extractJobData(context) {
     resetFieldDiag();
     const url = window.location.href;
-    const pageText = cleanText(document.body?.textContent || "");
+    const ctx = context || getLinkedInJobContext(url);
+    const pageText = getRootText(activeRoot);
     const ld = getJobPostingLd();
 
     const header = extractHeader();
@@ -1888,8 +2228,12 @@
       skills,
       easyApply: footer.easyApply,
       applicationClosed: footer.applicationClosed,
-      jobUrl: normalizeJobUrl(url),
-      jobId: extractJobId(url),
+      // Canonicalized to the standalone `/jobs/view/{id}/` form even when
+      // extracted from the search-results split view, so the same job saved
+      // from either layout dedupes to one history record (see
+      // application-history-storage.js's normalizeJobUrl-based lookup).
+      jobUrl: ctx.jobId ? `https://www.linkedin.com/jobs/view/${ctx.jobId}/` : normalizeJobUrl(url),
+      jobId: ctx.jobId || extractJobId(url),
       extractedAt: new Date().toISOString()
     };
 
@@ -2056,11 +2400,15 @@
       };
     }
 
-    if (!isSupportedLinkedInJobUrl(window.location.href)) {
+    const context = getLinkedInJobContext();
+    if (!context.isLinkedInJob) {
+      const onJobsSearchPage = /^\/jobs\/(search|search-results)\//i.test(window.location.pathname);
       return {
         ok: false,
-        status: "not_job_page",
-        message: "Open a LinkedIn job page to extract job details.",
+        status: onJobsSearchPage ? "no_active_job" : "not_job_page",
+        message: onJobsSearchPage
+          ? "No job selected. Click a job in the list to view its details."
+          : "Open a LinkedIn job page to extract job details.",
         jobData: null
       };
     }
@@ -2173,10 +2521,35 @@
     return true;
   }
 
-  function refreshExtraction() {
+  /**
+   * Synchronously points activeRoot at the currently selected job's pane
+   * before an immediate DOM action (e.g. clicking "show more"), without the
+   * bounded wait refreshExtraction performs before extracting. The awaited
+   * refreshExtraction() that follows still re-resolves and validates it.
+   * @returns {void}
+   */
+  function syncActiveRootForCurrentContext() {
+    const context = getLinkedInJobContext();
+    if (context.mode === "search") {
+      activeRoot = findActiveJobDetailRoot(context.jobId) || activeRoot;
+    } else if (context.isLinkedInJob) {
+      activeRoot = document;
+    }
+  }
+
+  async function refreshExtraction() {
     try {
       latestError = null;
-      latestJobData = extractJobData();
+      const context = getLinkedInJobContext();
+
+      if (!context.isLinkedInJob) {
+        activeRoot = document;
+        latestJobData = null;
+        return;
+      }
+
+      activeRoot = await waitForActiveDetailPane(context);
+      latestJobData = extractJobData(context);
     } catch (error) {
       latestError = error instanceof Error ? error.message : String(error);
     }
@@ -2259,7 +2632,7 @@
           return false;
         }
         const target = mutation.target instanceof Element ? mutation.target : mutation.target.parentElement;
-        return Boolean(target?.closest?.("main, article, section, [role='main'], .jobs-search__job-details"));
+        return Boolean(target?.closest?.(RELEVANT_MUTATION_SELECTOR));
       });
 
       if (relevant) {
@@ -2280,9 +2653,10 @@
 
     if (message.type === "GET_JOB_DATA") {
       const wantsFresh = Boolean(message.fresh);
+      syncActiveRootForCurrentContext();
       const clicked = expandDescriptionIfPossible();
-      window.setTimeout(() => {
-        refreshExtraction();
+      window.setTimeout(async () => {
+        await refreshExtraction();
         try {
           sendResponse(buildResponse());
         } catch (_error) {
@@ -2294,9 +2668,10 @@
     }
 
     if (message.type === "EXPAND_AND_GET_JOB_DATA") {
+      syncActiveRootForCurrentContext();
       const clicked = expandDescriptionIfPossible();
-      window.setTimeout(() => {
-        refreshExtraction();
+      window.setTimeout(async () => {
+        await refreshExtraction();
         try {
           sendResponse({ ...buildResponse(), expandedDescription: clicked });
         } catch (_error) {

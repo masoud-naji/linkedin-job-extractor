@@ -394,7 +394,15 @@
       try {
         chrome.scripting.executeScript({
           target: { tabId },
-          files: ["content.js"]
+          // Must match manifest.json's content_scripts file list and order:
+          // content.js calls window.parsers.* (normalizeLinkedInUrl,
+          // isRealSalary, extractJobIdFromUrl) without checking it's
+          // defined, so injecting content.js alone here — as this fallback
+          // used to — left those calls silently degrading (empty
+          // string / false) whenever this path ran, e.g. after the
+          // extension reloads while a LinkedIn tab stays open and the
+          // declarative content_scripts injection never re-ran for it.
+          files: ["parsers.js", "content.js"]
         }, () => {
           if (chrome.runtime.lastError) {
             reject(new Error(chrome.runtime.lastError.message));
@@ -663,7 +671,11 @@
    * @returns {boolean}
    */
   function isLinkedInJobUrl(url) {
-    return /^https:\/\/www\.linkedin\.com\/jobs\/(view|search)\//i.test(url || "");
+    // Matches both the standalone `/jobs/view/{id}` page and the multi-column
+    // `/jobs/search/` or `/jobs/search-results/` layout. Whether a job is
+    // actually selected in search mode (currentJobId present, detail pane
+    // rendered) is decided by the content script's response, not here.
+    return /^https:\/\/www\.linkedin\.com\/jobs\/(view|search-results|search)\//i.test(url || "");
   }
 
   /**

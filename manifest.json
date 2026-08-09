@@ -40,7 +40,8 @@
     {
       "matches": [
         "https://www.linkedin.com/jobs/view/*",
-        "https://www.linkedin.com/jobs/search/*"
+        "https://www.linkedin.com/jobs/search/*",
+        "https://www.linkedin.com/jobs/search-results/*"
       ],
       "js": [
         "parsers.js",
