@@ -2,13 +2,28 @@
   "use strict";
 
   const store = window.LJEApplicationHistory;
+  const calendarExport = window.LJECalendarExport;
 
   const elements = {
     emptyState: document.getElementById("emptyState"),
-    historyList: document.getElementById("historyList")
+    historyList: document.getElementById("historyList"),
+    selectionToolbar: document.getElementById("selectionToolbar"),
+    selectionCount: document.getElementById("selectionCount"),
+    exportSelectedBtn: document.getElementById("exportSelectedBtn")
   };
 
-  document.addEventListener("DOMContentLoaded", load);
+  // ids the user has checked for multi-select export. Persists across
+  // re-renders (edit/delete) within a page load, pruned against
+  // whatever's still in history each time load() runs.
+  const selectedIds = new Set();
+  let currentRecords = [];
+
+  document.addEventListener("DOMContentLoaded", () => {
+    load();
+    if (elements.exportSelectedBtn) {
+      elements.exportSelectedBtn.addEventListener("click", handleExportSelected);
+    }
+  });
 
   async function load() {
     let records = [];
@@ -18,7 +33,54 @@
     } catch (_error) {
       records = [];
     }
+    currentRecords = records;
+    pruneSelection(records);
     render(records);
+  }
+
+  /**
+   * Drops any selected id that no longer corresponds to a rendered
+   * record (e.g. it was deleted), so the toolbar count and Export
+   * Selected never reference stale entries.
+   * @param {object[]} records
+   */
+  function pruneSelection(records) {
+    const validIds = new Set(records.map((record) => record.id));
+    Array.from(selectedIds).forEach((id) => {
+      if (!validIds.has(id)) {
+        selectedIds.delete(id);
+      }
+    });
+  }
+
+  function updateSelectionToolbar() {
+    if (!elements.selectionToolbar) {
+      return;
+    }
+    if (selectedIds.size === 0) {
+      elements.selectionToolbar.classList.add("hidden");
+      return;
+    }
+    elements.selectionToolbar.classList.remove("hidden");
+    elements.selectionCount.textContent = `${selectedIds.size} selected`;
+  }
+
+  function handleExportSelected() {
+    if (!calendarExport || !selectedIds.size) {
+      return;
+    }
+    const records = currentRecords.filter((record) => selectedIds.has(record.id));
+    if (!records.length) {
+      return;
+    }
+    try {
+      const result = calendarExport.buildSelectionExport(records);
+      if (result) {
+        calendarExport.downloadICS(result.filename, result.content);
+      }
+    } catch (_error) {
+      // Non-fatal — the download simply won't happen.
+    }
   }
 
   /**
@@ -63,7 +125,71 @@
     }
 
     elements.emptyState.classList.add("hidden");
-    records.forEach((record) => elements.historyList.appendChild(buildItem(record)));
+
+    // UI-only grouping by local application date — storage stays a flat
+    // list, this just changes how it's rendered.
+    const groups = calendarExport ? calendarExport.groupByAppliedDate(records) : [{ dateKey: null, records }];
+    groups.forEach((group) => {
+      if (group.dateKey && calendarExport) {
+        elements.historyList.appendChild(buildDateHeader(group));
+      }
+      group.records.forEach((record) => elements.historyList.appendChild(buildItem(record)));
+    });
+
+    updateSelectionToolbar();
+  }
+
+  /**
+   * @param {{ dateKey: string, records: object[] }} group
+   * @returns {HTMLLIElement}
+   */
+  function buildDateHeader(group) {
+    const li = document.createElement("li");
+    li.className = "history-date-header";
+
+    const label = document.createElement("div");
+    label.className = "history-date-header-label";
+    label.textContent = calendarExport.formatDateKeyLong(group.dateKey);
+    li.appendChild(label);
+
+    const exportButton = document.createElement("button");
+    exportButton.type = "button";
+    exportButton.className = "history-export-day-btn";
+    exportButton.textContent = "Export Day";
+    exportButton.addEventListener("click", () => handleExportDay(group));
+    li.appendChild(exportButton);
+
+    return li;
+  }
+
+  /**
+   * @param {object} record
+   */
+  function handleExportSingle(record) {
+    if (!calendarExport) {
+      return;
+    }
+    try {
+      const { filename, content } = calendarExport.buildApplicationExport(record);
+      calendarExport.downloadICS(filename, content);
+    } catch (_error) {
+      // Non-fatal — the download simply won't happen.
+    }
+  }
+
+  /**
+   * @param {{ dateKey: string, records: object[] }} group
+   */
+  function handleExportDay(group) {
+    if (!calendarExport) {
+      return;
+    }
+    try {
+      const { filename, content } = calendarExport.buildDailyExport(group.dateKey, group.records);
+      calendarExport.downloadICS(filename, content);
+    } catch (_error) {
+      // Non-fatal — the download simply won't happen.
+    }
   }
 
   /**
@@ -73,6 +199,26 @@
   function buildItem(record) {
     const li = document.createElement("li");
     li.className = "history-item";
+
+    const rowLeft = document.createElement("div");
+    rowLeft.className = "history-row-left";
+
+    if (calendarExport) {
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.className = "history-select-checkbox";
+      checkbox.checked = selectedIds.has(record.id);
+      checkbox.setAttribute("aria-label", "Select for calendar export");
+      checkbox.addEventListener("change", () => {
+        if (checkbox.checked) {
+          selectedIds.add(record.id);
+        } else {
+          selectedIds.delete(record.id);
+        }
+        updateSelectionToolbar();
+      });
+      rowLeft.appendChild(checkbox);
+    }
 
     const main = document.createElement("div");
     main.className = "history-main";
@@ -120,9 +266,19 @@
     deleteButton.addEventListener("click", () => handleDelete(record));
     actions.appendChild(deleteButton);
 
+    if (calendarExport) {
+      const calendarButton = document.createElement("button");
+      calendarButton.type = "button";
+      calendarButton.className = "history-action-btn";
+      calendarButton.textContent = "Add to Calendar";
+      calendarButton.addEventListener("click", () => handleExportSingle(record));
+      actions.appendChild(calendarButton);
+    }
+
     meta.appendChild(actions);
 
-    li.appendChild(main);
+    rowLeft.appendChild(main);
+    li.appendChild(rowLeft);
     li.appendChild(meta);
     return li;
   }

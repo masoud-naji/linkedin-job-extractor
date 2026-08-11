@@ -52,10 +52,12 @@
     copyText: document.getElementById("copyText"),
     copyJson: document.getElementById("copyJson"),
     refreshData: document.getElementById("refreshData"),
+    openAIChat: document.getElementById("openAIChat"),
     bulkImportTab: document.getElementById("bulkImportTab"),
     manageProfiles: document.getElementById("manageProfiles"),
     manageMappings: document.getElementById("manageMappings"),
     viewHistory: document.getElementById("viewHistory"),
+    openSettings: document.getElementById("openSettings"),
     assistantProfileSelect: document.getElementById("assistantProfileSelect"),
     fillPageBtn: document.getElementById("fillPageBtn"),
     assistantStatus: document.getElementById("assistantStatus"),
@@ -77,10 +79,12 @@
     elements.copyText.addEventListener("click", () => copyToClipboard(formatPlainText(state.currentJob), "Copied job data.", elements.copyText));
     elements.copyJson.addEventListener("click", () => copyToClipboard(JSON.stringify(state.currentJob || {}, null, 2), "Copied JSON.", elements.copyJson));
     elements.refreshData.addEventListener("click", () => loadJobData({ fresh: true }));
+    elements.openAIChat.addEventListener("click", handleOpenInAIChat);
     elements.bulkImportTab.addEventListener("click", handleOpenBulkImportTab);
     elements.manageProfiles.addEventListener("click", handleOpenProfilesTab);
     elements.manageMappings.addEventListener("click", handleOpenMappingsTab);
     elements.viewHistory.addEventListener("click", handleOpenHistoryTab);
+    elements.openSettings.addEventListener("click", handleOpenSettingsTab);
     elements.assistantProfileSelect.addEventListener("change", handleAssistantProfileChange);
     elements.fillPageBtn.addEventListener("click", handleFillPageClick);
     elements.grantIframeAccess.addEventListener("click", handleGrantIframeAccess);
@@ -567,6 +571,61 @@
     chrome.tabs.create({ url: chrome.runtime.getURL("history.html"), active: true });
   }
 
+  function handleOpenSettingsTab() {
+    chrome.tabs.create({ url: chrome.runtime.getURL("settings.html"), active: true });
+  }
+
+  /**
+   * "Open in AI Chat" — combines the AI Assistant Settings (prompt,
+   * include-context preference, destination/provider) with the CURRENTLY
+   * EXTRACTED job (state.currentJob, the same object Copy as JSON already
+   * serializes — no second extraction) and, optionally, the active
+   * Profile's context. Copies the result and opens the configured
+   * destination; falls back to a brand-new chat on the preferred provider
+   * when no default destination is set, so the button always does
+   * something useful even before Settings has been touched.
+   */
+  async function handleOpenInAIChat() {
+    if (!state.currentJob) {
+      showMessage("No job data is available yet.", "warning");
+      return;
+    }
+    const aiSettings = window.LJEAISettings;
+    const aiContext = window.LJEAIContext;
+    if (!aiSettings || !aiContext) {
+      showMessage("AI Assistant is unavailable.", "error");
+      return;
+    }
+
+    try {
+      const [prompt, includeContext] = await Promise.all([
+        aiSettings.getEffectivePrompt(),
+        aiSettings.getIncludeProfileContext()
+      ]);
+
+      let profileContext = null;
+      if (includeContext && window.LJEProfileStore) {
+        const activeProfile = await window.LJEProfileStore.getActiveProfile();
+        if (activeProfile) {
+          profileContext = aiContext.buildProfileContext(activeProfile);
+        }
+      }
+
+      const payload = aiContext.buildJobChatPayload({ prompt, job: state.currentJob, profileContext });
+      await navigator.clipboard.writeText(payload);
+
+      const destination = await aiSettings.getDefaultDestination();
+      const destinationUrl = destination
+        ? destination.url
+        : aiSettings.getProvider(await aiSettings.getPreferredAIProvider()).newChatUrl;
+      chrome.tabs.create({ url: destinationUrl, active: true });
+
+      showMessage("Prompt and job data copied. Paste it into the chat.", "ready");
+    } catch (_error) {
+      showMessage("Copy failed. Chrome may require focus or clipboard permission for this action.", "error");
+    }
+  }
+
   /**
    * @param {string} value
    * @param {string} successMessage
@@ -736,6 +795,7 @@
   function setCopyEnabled(enabled) {
     elements.copyText.disabled = !enabled;
     elements.copyJson.disabled = !enabled;
+    elements.openAIChat.disabled = !enabled;
     elements.toggleDetails.disabled = !enabled || state.busy;
   }
 
