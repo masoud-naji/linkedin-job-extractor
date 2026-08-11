@@ -19,7 +19,8 @@
     expanded: false,
     busy: false,
     pendingIframePattern: null,
-    pendingIframeHost: null
+    pendingIframeHost: null,
+    searchResultLinks: []
   };
 
   const elements = {
@@ -63,13 +64,21 @@
     assistantStatus: document.getElementById("assistantStatus"),
     iframePermissionRow: document.getElementById("iframePermissionRow"),
     iframePermissionText: document.getElementById("iframePermissionText"),
-    grantIframeAccess: document.getElementById("grantIframeAccess")
+    grantIframeAccess: document.getElementById("grantIframeAccess"),
+    searchResultsPanel: document.getElementById("searchResultsPanel"),
+    searchResultsCount: document.getElementById("searchResultsCount"),
+    collectSearchLinks: document.getElementById("collectSearchLinks"),
+    searchResultsStatus: document.getElementById("searchResultsStatus"),
+    searchResultsActions: document.getElementById("searchResultsActions"),
+    copySearchLinks: document.getElementById("copySearchLinks"),
+    sendToBulkImport: document.getElementById("sendToBulkImport")
   };
 
   document.addEventListener("DOMContentLoaded", () => {
     bindEvents();
     loadJobData({ fresh: false });
     loadAssistantProfiles();
+    initSearchResultsPanel();
   });
 
   function bindEvents() {
@@ -88,6 +97,9 @@
     elements.assistantProfileSelect.addEventListener("change", handleAssistantProfileChange);
     elements.fillPageBtn.addEventListener("click", handleFillPageClick);
     elements.grantIframeAccess.addEventListener("click", handleGrantIframeAccess);
+    elements.collectSearchLinks.addEventListener("click", handleCollectSearchLinks);
+    elements.copySearchLinks.addEventListener("click", handleCopySearchLinks);
+    elements.sendToBulkImport.addEventListener("click", handleSendToBulkImport);
   }
 
   /**
@@ -301,6 +313,110 @@
     );
     chrome.tabs.create({ url, active: true });
     elements.assistantStatus.textContent = 'Opened a new tab — click "Grant access" there, then come back and retry.';
+  }
+
+  /**
+   * Shows the Search Results collector only on a LinkedIn Jobs search page,
+   * since it reads the left-side results list and has nothing to act on
+   * anywhere else (including a standalone `/jobs/view/{id}` page).
+   */
+  async function initSearchResultsPanel() {
+    const tab = await getActiveTab();
+    const isSearchPage = isLinkedInSearchResultsUrl(tab?.url || "");
+    elements.searchResultsPanel.classList.toggle("hidden", !isSearchPage);
+  }
+
+  /**
+   * @param {string} url
+   * @returns {boolean}
+   */
+  function isLinkedInSearchResultsUrl(url) {
+    return /^https:\/\/www\.linkedin\.com\/jobs\/(search|search-results)\//i.test(url || "");
+  }
+
+  async function handleCollectSearchLinks() {
+    elements.searchResultsActions.classList.add("hidden");
+    state.searchResultLinks = [];
+    elements.collectSearchLinks.disabled = true;
+    elements.searchResultsStatus.textContent = "Collecting job links...";
+
+    try {
+      const tab = await getActiveTab();
+      if (!tab?.id || !isLinkedInSearchResultsUrl(tab.url || "")) {
+        elements.searchResultsStatus.textContent = "Open a LinkedIn Jobs search page first.";
+        return;
+      }
+
+      const rawLimit = elements.searchResultsCount.value;
+      const limit = rawLimit === "all" ? null : Number(rawLimit);
+      const response = await requestSearchResultLinks(tab.id, limit);
+
+      if (!response?.ok) {
+        elements.searchResultsStatus.textContent = response?.message || "Could not collect job links.";
+        return;
+      }
+
+      state.searchResultLinks = Array.isArray(response.links) ? response.links : [];
+      if (!state.searchResultLinks.length) {
+        elements.searchResultsStatus.textContent = "No job links found in the results list.";
+        return;
+      }
+
+      const count = state.searchResultLinks.length;
+      elements.searchResultsStatus.textContent = `${count} unique job link${count === 1 ? "" : "s"} found.`;
+      elements.searchResultsActions.classList.remove("hidden");
+    } catch (error) {
+      elements.searchResultsStatus.textContent = getFriendlyError(error);
+    } finally {
+      elements.collectSearchLinks.disabled = false;
+    }
+  }
+
+  /**
+   * @param {number} tabId
+   * @param {number | null} limit
+   * @returns {Promise<object>}
+   */
+  async function requestSearchResultLinks(tabId, limit) {
+    try {
+      return await sendTabMessage(tabId, { type: "COLLECT_SEARCH_RESULT_LINKS", limit });
+    } catch (firstError) {
+      await injectContentScript(tabId);
+      try {
+        return await sendTabMessage(tabId, { type: "COLLECT_SEARCH_RESULT_LINKS", limit });
+      } catch (_secondError) {
+        throw firstError;
+      }
+    }
+  }
+
+  async function handleCopySearchLinks() {
+    if (!state.searchResultLinks.length) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(state.searchResultLinks.join("\n"));
+      elements.searchResultsStatus.textContent = "Links copied to clipboard.";
+    } catch (_error) {
+      elements.searchResultsStatus.textContent = "Copy failed. Chrome may require focus or clipboard permission for this action.";
+    }
+  }
+
+  /**
+   * Hands the collected links off to the existing Bulk Import tab by
+   * pre-filling its textarea. Import itself stays a separate, explicit step
+   * the user takes there — this only opens/populates the page.
+   */
+  async function handleSendToBulkImport() {
+    if (!state.searchResultLinks.length) {
+      return;
+    }
+    try {
+      await chrome.storage.local.set({ pendingBulkImportLinks: state.searchResultLinks });
+      chrome.tabs.create({ url: chrome.runtime.getURL("bulk.html"), active: true });
+    } catch (_error) {
+      elements.searchResultsStatus.textContent = "Could not open Bulk Import.";
+    }
   }
 
   /**

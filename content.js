@@ -2646,6 +2646,137 @@
     });
   }
 
+  // --- Search-results link collector ------------------------------------
+  // Lightweight, deliberately separate from the job-detail extraction above:
+  // it only reads job cards from the LEFT search-results list and never
+  // touches the RIGHT detail pane, clicks a card, or opens a tab. LinkedIn's
+  // current "aero" search layout renders each card as a `div[role=button]`
+  // with no `<a href>` at all — the job ID instead lives in that div's own
+  // `componentkey="job-card-component-ref-{jobId}"` attribute (confirmed by
+  // clicking a card and comparing against the resulting `currentJobId` query
+  // param). The list container is a virtualized `LazyColumn`, so cards can be
+  // unmounted/reused while scrolling — collected IDs are accumulated in a
+  // Set across scroll passes so nothing already seen is lost.
+  const SEARCH_RESULTS_CONTAINER_SELECTOR = '[data-testid="lazy-column"][componentkey="SearchResultsMainContent"]';
+  const JOB_CARD_ID_PATTERN = /job-card-component-ref-(\d+)/;
+  const SEARCH_RESULT_SCROLL_WAIT_MS = 350;
+  const SEARCH_RESULT_MAX_SCROLL_ATTEMPTS = 40;
+  const SEARCH_RESULT_MAX_STAGNANT_ATTEMPTS = 3;
+
+  function isLinkedInSearchResultsPage() {
+    return /^\/jobs\/(search|search-results)\//i.test(window.location.pathname);
+  }
+
+  function getSearchResultsContainer() {
+    return document.querySelector(SEARCH_RESULTS_CONTAINER_SELECTOR);
+  }
+
+  /**
+   * Reads the job IDs currently mounted in the results list, in DOM order.
+   * @param {Element} container
+   * @returns {string[]}
+   */
+  function readMountedJobCardIds(container) {
+    const cards = container.querySelectorAll('[componentkey^="job-card-component-ref-"]');
+    const ids = [];
+    cards.forEach((card) => {
+      const match = (card.getAttribute("componentkey") || "").match(JOB_CARD_ID_PATTERN);
+      if (match) {
+        ids.push(match[1]);
+      }
+    });
+    return ids;
+  }
+
+  /**
+   * Walks up from the results container to find the nearest ancestor that
+   * actually scrolls. Not hardcoded to a class name since LinkedIn's
+   * classnames here are hashed/unstable; the scrollable pane is a structural
+   * fact instead.
+   * @param {Element} element
+   * @returns {Element | null}
+   */
+  function findScrollableAncestor(element) {
+    let node = element.parentElement;
+    while (node && node !== document.body) {
+      const style = window.getComputedStyle(node);
+      const canScrollY = /(auto|scroll)/.test(style.overflowY);
+      if (canScrollY && node.scrollHeight > node.clientHeight + 4) {
+        return node;
+      }
+      node = node.parentElement;
+    }
+    return null;
+  }
+
+  function wait(ms) {
+    return new Promise((resolve) => window.setTimeout(resolve, ms));
+  }
+
+  /**
+   * Collects unique job IDs from the left search-results list, preserving
+   * LinkedIn's current on-page order (no ranking/sorting of our own).
+   * @param {number | null} limit - Target unique count, or null for
+   *   "all currently loaded" (no scrolling performed).
+   * @returns {Promise<{ ok: boolean, links?: string[], message?: string }>}
+   */
+  async function collectSearchResultLinks(limit) {
+    if (!isLinkedInSearchResultsPage()) {
+      return { ok: false, message: "Open a LinkedIn Jobs search page to collect links." };
+    }
+
+    const container = getSearchResultsContainer();
+    if (!container) {
+      return { ok: false, message: "Could not find the search results list on this page." };
+    }
+
+    const seen = new Set();
+    const orderedIds = [];
+    const collectPass = () => {
+      readMountedJobCardIds(container).forEach((id) => {
+        if (!seen.has(id)) {
+          seen.add(id);
+          orderedIds.push(id);
+        }
+      });
+    };
+
+    collectPass();
+
+    if (typeof limit === "number" && orderedIds.length < limit) {
+      const scrollTarget = findScrollableAncestor(container) || container;
+      let stagnantAttempts = 0;
+      for (
+        let attempt = 0;
+        attempt < SEARCH_RESULT_MAX_SCROLL_ATTEMPTS && orderedIds.length < limit;
+        attempt += 1
+      ) {
+        const beforeCount = orderedIds.length;
+        const beforeScrollTop = scrollTarget.scrollTop;
+        scrollTarget.scrollTop = beforeScrollTop + Math.max(scrollTarget.clientHeight * 0.8, 400);
+        // eslint-disable-next-line no-await-in-loop
+        await wait(SEARCH_RESULT_SCROLL_WAIT_MS);
+        collectPass();
+
+        const madeProgress = orderedIds.length > beforeCount;
+        const scrollMoved = scrollTarget.scrollTop > beforeScrollTop;
+        if (!madeProgress) {
+          stagnantAttempts += 1;
+          if (!scrollMoved || stagnantAttempts >= SEARCH_RESULT_MAX_STAGNANT_ATTEMPTS) {
+            break;
+          }
+        } else {
+          stagnantAttempts = 0;
+        }
+      }
+    }
+
+    const finalIds = typeof limit === "number" ? orderedIds.slice(0, limit) : orderedIds;
+    const links = finalIds.map((id) => window.parsers.buildJobViewUrl(id)).filter(Boolean);
+    return { ok: true, links };
+  }
+  // --- End search-results link collector ----------------------------------
+
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (!message || typeof message.type !== "string") {
       return false;
@@ -2664,6 +2795,27 @@
           // could be delivered; nothing left to respond to.
         }
       }, wantsFresh || clicked ? DESCRIPTION_EXPAND_WAIT_MS : 0);
+      return true;
+    }
+
+    if (message.type === "COLLECT_SEARCH_RESULT_LINKS") {
+      const limit = typeof message.limit === "number" ? message.limit : null;
+      collectSearchResultLinks(limit)
+        .then((result) => {
+          try {
+            sendResponse(result);
+          } catch (_error) {
+            // Extension context invalidated (e.g. reloaded) before the
+            // response could be delivered; nothing left to respond to.
+          }
+        })
+        .catch((error) => {
+          try {
+            sendResponse({ ok: false, message: error instanceof Error ? error.message : "Failed to collect job links." });
+          } catch (_error) {
+            // Extension context invalidated; nothing left to respond to.
+          }
+        });
       return true;
     }
 

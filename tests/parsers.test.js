@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { extractJobIdFromUrl, normalizeLinkedInUrl, isRealSalary } = require('../parsers');
+const { extractJobIdFromUrl, normalizeLinkedInUrl, buildJobViewUrl, isRealSalary } = require('../parsers');
 
 function run() {
   assert.strictEqual(extractJobIdFromUrl('https://www.linkedin.com/jobs/view/senior-engineer-at-acme-123456'), '123456');
@@ -19,6 +19,12 @@ function run() {
   assert.strictEqual(isRealSalary('$123K/yr - $215.2K/yr'), true);
   assert.strictEqual(isRealSalary('$85,000'), true);
   assert.strictEqual(isRealSalary('$0'), false);
+
+  assert.strictEqual(buildJobViewUrl('4431455414'), 'https://www.linkedin.com/jobs/view/4431455414/');
+  assert.strictEqual(buildJobViewUrl(4431455414), 'https://www.linkedin.com/jobs/view/4431455414/');
+  assert.strictEqual(buildJobViewUrl('abc123'), '');
+  assert.strictEqual(buildJobViewUrl(''), '');
+  assert.strictEqual(buildJobViewUrl(null), '');
 
   console.log('parser tests passed');
 }

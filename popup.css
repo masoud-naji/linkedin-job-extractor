@@ -126,6 +126,25 @@ h2 {
   font-size: 12px;
 }
 
+#searchResultsPanel .assistant-row {
+  flex-wrap: wrap;
+}
+
+#searchResultsCount {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  background: #ffffff;
+  font: inherit;
+}
+
+.search-results-actions {
+  margin-top: 10px;
+}
+
 .tabs {
   display: flex;
   gap: 4px;

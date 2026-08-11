@@ -13,10 +13,35 @@
     jsonView: document.getElementById("jsonView")
   };
 
-  document.addEventListener("DOMContentLoaded", () => {
+  document.addEventListener("DOMContentLoaded", async () => {
     bindEvents();
-    loadSavedJobs();
+    // Sequenced (not parallel) so a pending hand-off's status message always
+    // wins over loadSavedJobs' "N saved jobs" summary, since it reflects the
+    // action the user just took.
+    await loadSavedJobs();
+    await loadPendingSearchResultLinks();
   });
+
+  /**
+   * Picks up links handed off from the popup's Search Results collector
+   * (Send to Bulk Import). Only pre-fills the textarea — importing stays a
+   * separate, explicit step the user takes with the existing Import jobs
+   * button below.
+   */
+  async function loadPendingSearchResultLinks() {
+    try {
+      const result = await chrome.storage.local.get(["pendingBulkImportLinks"]);
+      const links = Array.isArray(result?.pendingBulkImportLinks) ? result.pendingBulkImportLinks : [];
+      if (!links.length) {
+        return;
+      }
+      await chrome.storage.local.remove("pendingBulkImportLinks");
+      elements.bulkInput.value = links.join("\n");
+      setStatus(`Loaded ${links.length} link${links.length === 1 ? "" : "s"} from Search Results. Review, then click Import jobs.`);
+    } catch (_error) {
+      // Ignore; textarea just stays empty and the user can paste manually.
+    }
+  }
 
   function bindEvents() {
     elements.bulkImport.addEventListener("click", handleBulkImport);

@@ -52,6 +52,14 @@
     }
   }
 
+  function buildJobViewUrl(jobId) {
+    const id = String(jobId || '').trim();
+    if (!/^\d+$/.test(id)) {
+      return '';
+    }
+    return `https://www.linkedin.com/jobs/view/${id}/`;
+  }
+
   function isRealSalary(value) {
     const v = String(value || '');
     if (!/[\$€£₹]/.test(v)) {
@@ -69,6 +77,7 @@
   return {
     extractJobIdFromUrl,
     normalizeLinkedInUrl,
+    buildJobViewUrl,
     isRealSalary
   };
 });

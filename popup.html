@@ -118,6 +118,25 @@
           </div>
         </section>
 
+        <section id="searchResultsPanel" class="assistant-panel hidden">
+          <p class="eyebrow">Search Results</p>
+          <div class="assistant-row">
+            <label for="searchResultsCount" class="assistant-label">Collect</label>
+            <select id="searchResultsCount">
+              <option value="5">Top 5</option>
+              <option value="10" selected>Top 10</option>
+              <option value="20">Top 20</option>
+              <option value="all">All loaded</option>
+            </select>
+            <button id="collectSearchLinks" type="button">Collect Job Links</button>
+          </div>
+          <p id="searchResultsStatus" class="assistant-status"></p>
+          <div id="searchResultsActions" class="actions search-results-actions hidden">
+            <button id="copySearchLinks" type="button">Copy Links</button>
+            <button id="sendToBulkImport" type="button">Send to Bulk Import</button>
+          </div>
+        </section>
+
         <footer class="actions">
           <button id="bulkImportTab" type="button">Bulk Import</button>
           <button id="manageProfiles" type="button">Profiles</button>
