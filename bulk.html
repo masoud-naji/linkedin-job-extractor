@@ -49,6 +49,16 @@
         border-top: 1px solid #e5eaf0;
         padding-top: 14px;
       }
+      .import-meta {
+        margin: 0 0 2px;
+        color: #5b6673;
+        font-size: 13px;
+      }
+      .import-summary {
+        margin: 0 0 10px;
+        color: #5b6673;
+        font-size: 13px;
+      }
       table {
         width: 100%;
         border-collapse: collapse;
@@ -90,7 +100,9 @@
       <p id="bulkStatus" class="status">No jobs saved yet.</p>
 
       <section class="results" id="resultsSection" hidden>
-        <h2>Saved jobs</h2>
+        <h2 id="resultsHeading">Previous Saved Jobs</h2>
+        <p id="resultsMeta" class="import-meta" hidden></p>
+        <p id="resultsSummary" class="import-summary" hidden></p>
         <table id="resultsTable">
           <thead>
             <tr>

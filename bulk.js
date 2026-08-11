@@ -1,7 +1,20 @@
 (() => {
   "use strict";
 
-  const state = { savedJobs: [] };
+  // `lastBulkImport` is deliberately a single object (not a history list): we
+  // only need to know when/how the MOST RECENT completed import run went, so
+  // the "Saved jobs" table can be labeled either as that latest run's result
+  // or, when the textarea no longer matches what was last imported, clearly
+  // marked as leftovers from before. `savedJobs` itself stays the same flat,
+  // cross-run-deduped array it always was — nothing about its shape changes.
+  //
+  // `hasPendingInputChanges` tracks whether the textarea has been touched
+  // (typed, pasted, edited, or programmatically filled from Search Results)
+  // since the last completed import. The saved-jobs table can only be
+  // labeled "current" when this is false AND a completed import exists — any
+  // textarea change immediately invalidates that, even before the user
+  // clicks Import jobs.
+  const state = { savedJobs: [], lastBulkImport: null, hasPendingInputChanges: false };
   const elements = {
     bulkInput: document.getElementById("bulkInput"),
     bulkImport: document.getElementById("bulkImport"),
@@ -9,6 +22,9 @@
     bulkClear: document.getElementById("bulkClear"),
     bulkStatus: document.getElementById("bulkStatus"),
     resultsSection: document.getElementById("resultsSection"),
+    resultsHeading: document.getElementById("resultsHeading"),
+    resultsMeta: document.getElementById("resultsMeta"),
+    resultsSummary: document.getElementById("resultsSummary"),
     resultsBody: document.getElementById("resultsBody"),
     jsonView: document.getElementById("jsonView")
   };
@@ -36,7 +52,12 @@
         return;
       }
       await chrome.storage.local.remove("pendingBulkImportLinks");
+      // Setting .value programmatically does not fire an "input" event, so
+      // this path must mark the input as pending itself (handleBulkInputChanged
+      // covers manual typing/pasting/editing).
       elements.bulkInput.value = links.join("\n");
+      state.hasPendingInputChanges = true;
+      showResults();
       setStatus(`Loaded ${links.length} link${links.length === 1 ? "" : "s"} from Search Results. Review, then click Import jobs.`);
     } catch (_error) {
       // Ignore; textarea just stays empty and the user can paste manually.
@@ -47,6 +68,21 @@
     elements.bulkImport.addEventListener("click", handleBulkImport);
     elements.bulkCopy.addEventListener("click", handleCopySavedJobs);
     elements.bulkClear.addEventListener("click", handleClearSavedJobs);
+    elements.bulkInput.addEventListener("input", handleBulkInputChanged);
+  }
+
+  /**
+   * Any manual edit to the textarea (typing, pasting, deleting, replacing)
+   * means the saved-jobs table below no longer corresponds to the current
+   * input, so it can no longer be labeled "current" until a new import
+   * completes for this input.
+   */
+  function handleBulkInputChanged() {
+    if (state.hasPendingInputChanges) {
+      return;
+    }
+    state.hasPendingInputChanges = true;
+    renderResultsHeading();
   }
 
   async function handleBulkImport() {
@@ -78,6 +114,15 @@
       const deduped = dedupeJobs([...state.savedJobs, ...importedJobs]);
       state.savedJobs = deduped;
       await saveJobsToStorage(deduped);
+      state.lastBulkImport = await saveLastImportMeta({
+        processedCount: links.length,
+        savedCount: importedJobs.length,
+        failedCount: links.length - importedJobs.length
+      });
+      // The import that just completed is for the input that was in the
+      // textarea when it finished — this is the ONLY place the table becomes
+      // "current" again.
+      state.hasPendingInputChanges = false;
       elements.bulkInput.value = "";
       showResults();
       setStatus(`Imported ${importedJobs.length} job${importedJobs.length === 1 ? "" : "s"} and saved them locally.`);
@@ -127,11 +172,13 @@
 
   async function loadSavedJobs() {
     try {
-      const result = await chrome.storage.local.get(["savedJobs"]);
+      const result = await chrome.storage.local.get(["savedJobs", "lastBulkImport"]);
       state.savedJobs = Array.isArray(result?.savedJobs) ? result.savedJobs : [];
+      state.lastBulkImport = result?.lastBulkImport && typeof result.lastBulkImport === "object" ? result.lastBulkImport : null;
       updateStatus();
     } catch (_error) {
       state.savedJobs = [];
+      state.lastBulkImport = null;
       updateStatus();
     }
   }
@@ -142,6 +189,25 @@
     } catch (_error) {
       // Ignore storage errors.
     }
+  }
+
+  /**
+   * Persists metadata for the MOST RECENT completed import run only (a
+   * single object, not a growing history list) so the results table can be
+   * labeled "Current Saved Jobs" with a timestamp/summary instead of silently
+   * looking like it belongs to whatever links currently sit in the textarea.
+   * @param {{ processedCount: number, savedCount: number, failedCount: number }} counts
+   * @returns {Promise<object>}
+   */
+  async function saveLastImportMeta(counts) {
+    const meta = { completedAt: new Date().toISOString(), ...counts };
+    try {
+      await chrome.storage.local.set({ lastBulkImport: meta });
+    } catch (_error) {
+      // Ignore storage errors; the in-memory value still drives this
+      // session's UI even if it didn't persist for next time.
+    }
+    return meta;
   }
 
   function updateStatus() {
@@ -162,7 +228,76 @@
       return;
     }
     elements.resultsSection.hidden = false;
+    renderResultsHeading();
     renderResults();
+  }
+
+  /**
+   * Labels the results table so it's never mistaken for the outcome of
+   * whatever is currently in the textarea. Only two states:
+   * - "Current Saved Jobs": a completed import is on record AND the
+   *   textarea hasn't changed since it finished. Shows that import's
+   *   timestamp and, when available, a processed/saved/failed breakdown.
+   * - "Previous Saved Jobs": everything else — legacy data saved before this
+   *   metadata existed, a completed import whose input has since been
+   *   edited/replaced, or Search Results links sitting unimported. Shows
+   *   "Last import: <timestamp>" only when a completed import is on record;
+   *   never fabricates a date for legacy data.
+   */
+  function renderResultsHeading() {
+    const isCurrent = Boolean(state.lastBulkImport) && !state.hasPendingInputChanges;
+
+    if (isCurrent) {
+      elements.resultsHeading.textContent = "Current Saved Jobs";
+      elements.resultsMeta.textContent = formatTimestamp(state.lastBulkImport.completedAt);
+      elements.resultsMeta.hidden = false;
+      const summary = formatImportSummary(state.lastBulkImport);
+      elements.resultsSummary.textContent = summary;
+      elements.resultsSummary.hidden = !summary;
+      return;
+    }
+
+    elements.resultsHeading.textContent = "Previous Saved Jobs";
+    if (state.lastBulkImport) {
+      elements.resultsMeta.textContent = `Last import: ${formatTimestamp(state.lastBulkImport.completedAt)}`;
+      elements.resultsMeta.hidden = false;
+    } else {
+      elements.resultsMeta.hidden = true;
+    }
+    elements.resultsSummary.hidden = true;
+  }
+
+  /**
+   * @param {{ processedCount?: number, savedCount?: number, failedCount?: number }} meta
+   * @returns {string}
+   */
+  function formatImportSummary(meta) {
+    const { processedCount, savedCount, failedCount } = meta || {};
+    if (typeof failedCount === "number" && failedCount > 0 && typeof processedCount === "number") {
+      return `${processedCount} job${processedCount === 1 ? "" : "s"} processed · ${savedCount} saved · ${failedCount} failed`;
+    }
+    if (typeof savedCount === "number") {
+      return `${savedCount} job${savedCount === 1 ? "" : "s"} saved`;
+    }
+    return "";
+  }
+
+  /**
+   * @param {string} isoValue
+   * @returns {string}
+   */
+  function formatTimestamp(isoValue) {
+    const date = new Date(isoValue || "");
+    if (Number.isNaN(date.getTime())) {
+      return "";
+    }
+    return date.toLocaleString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit"
+    });
   }
 
   function setStatus(message) {
