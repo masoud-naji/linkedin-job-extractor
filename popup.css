@@ -434,3 +434,23 @@ button:disabled {
 .hidden {
   display: none !important;
 }
+
+.brand-footer {
+  margin: 16px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+  text-align: center;
+}
+
+.brand-footer a {
+  color: var(--muted);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.brand-footer a:hover {
+  color: var(--accent-dark);
+  text-decoration: underline;
+}
