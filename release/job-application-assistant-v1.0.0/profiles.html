@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LinkedIn Job Extractor - Profiles</title>
+    <style>
+      body {
+        font-family: "Segoe UI", sans-serif;
+        margin: 0;
+        padding: 20px;
+        background: #f7f9fc;
+        color: #19212a;
+      }
+      .page {
+        max-width: 960px;
+        margin: 0 auto;
+      }
+      .page-header h1 {
+        margin: 0 0 4px;
+      }
+      .page-header p {
+        margin: 0 0 18px;
+        color: #5b6673;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: 240px 1fr;
+        gap: 16px;
+        align-items: start;
+      }
+      .sidebar,
+      .detail {
+        padding: 14px;
+        border-radius: 10px;
+        background: #fff;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      }
+      .sidebar-toolbar {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        margin-bottom: 10px;
+      }
+      .profile-list {
+        list-style: none;
+        margin: 0 0 12px;
+        padding: 0;
+        max-height: 320px;
+        overflow: auto;
+      }
+      .profile-item + .profile-item {
+        margin-top: 6px;
+      }
+      .profile-item-button {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid #e5eaf0;
+        border-radius: 8px;
+        background: #fafbfd;
+        color: #19212a;
+        text-align: left;
+        cursor: pointer;
+      }
+      .profile-item.selected .profile-item-button {
+        border-color: #0a66c2;
+        background: #eaf2fc;
+      }
+      .badge-active {
+        padding: 2px 6px;
+        border-radius: 999px;
+        background: #137333;
+        color: #fff;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .sidebar-footer {
+        border-top: 1px solid #e5eaf0;
+        padding-top: 10px;
+      }
+      .empty-state {
+        color: #5b6673;
+      }
+      .detail-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 14px;
+      }
+      .detail-actions {
+        display: flex;
+        gap: 8px;
+      }
+      .active-tag {
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: #eaf6ee;
+        color: #137333;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .field-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px 12px;
+      }
+      label {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-bottom: 12px;
+        color: #5b6673;
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+      }
+      .full-row {
+        grid-column: 1 / -1;
+      }
+      input[type="text"],
+      input[type="email"],
+      input[type="url"],
+      textarea {
+        padding: 8px 10px;
+        border: 1px solid #d8dee6;
+        border-radius: 8px;
+        color: #19212a;
+        font: inherit;
+        text-transform: none;
+        letter-spacing: normal;
+        font-weight: 400;
+      }
+      textarea {
+        resize: vertical;
+        box-sizing: border-box;
+      }
+      .resume-block textarea {
+        width: 100%;
+        margin-top: 8px;
+      }
+      textarea.mono {
+        font-family: Consolas, monospace;
+        font-size: 12px;
+      }
+      .resume-block {
+        margin: 4px 0 14px;
+      }
+      .resume-block h2 {
+        margin: 0 0 6px;
+        font-size: 13px;
+        text-transform: none;
+      }
+      .muted {
+        color: #5b6673;
+        font-size: 12px;
+        font-weight: 400;
+        text-transform: none;
+      }
+      .resume-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .form-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 4px;
+      }
+      button {
+        padding: 8px 12px;
+        border: 1px solid #0a66c2;
+        border-radius: 6px;
+        background: #0a66c2;
+        color: #fff;
+        font: inherit;
+        cursor: pointer;
+      }
+      button.secondary {
+        background: #fff;
+        color: #0a66c2;
+      }
+      button.danger {
+        border-color: #b3261e;
+        background: #fff;
+        color: #b3261e;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      a#pdfDownload {
+        color: #0a66c2;
+      }
+      .hidden {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header class="page-header">
+        <h1>Profiles</h1>
+        <p>Store multiple resume profiles locally in this browser. Nothing is uploaded, parsed, or sent anywhere.</p>
+      </header>
+
+      <div class="layout">
+        <aside class="sidebar">
+          <div class="sidebar-toolbar">
+            <button id="newProfile" type="button">+ New</button>
+            <button id="duplicateProfile" type="button" class="secondary" disabled>Duplicate</button>
+            <button id="renameProfile" type="button" class="secondary" disabled>Rename</button>
+            <button id="deleteProfile" type="button" class="danger" disabled>Delete</button>
+          </div>
+          <ul id="profileList" class="profile-list"></ul>
+          <div class="sidebar-footer">
+            <button id="importProfile" type="button" class="secondary">Import JSON</button>
+            <input id="importFile" type="file" accept="application/json,.json" hidden>
+          </div>
+        </aside>
+
+        <section class="detail" id="detailPanel">
+          <p class="empty-state" id="emptyState">No profile selected. Create a new profile to get started.</p>
+
+          <form id="profileForm" class="profile-form hidden">
+            <div class="detail-header">
+              <span class="active-tag" id="activeTag" hidden>Active profile</span>
+              <div class="detail-actions">
+                <button id="setActive" type="button" class="secondary">Set Active</button>
+                <button id="exportProfile" type="button" class="secondary">Export JSON</button>
+              </div>
+            </div>
+
+            <div class="field-grid">
+              <label>Full name
+                <input id="fFullName" type="text" autocomplete="off">
+              </label>
+              <label>Email
+                <input id="fEmail" type="email" autocomplete="off">
+              </label>
+              <label>Phone
+                <input id="fPhone" type="text" autocomplete="off">
+              </label>
+              <label>Current title
+                <input id="fTitle" type="text" autocomplete="off">
+              </label>
+              <label>Location
+                <input id="fLocation" type="text" autocomplete="off">
+              </label>
+              <label>LinkedIn URL
+                <input id="fLinkedin" type="url" autocomplete="off">
+              </label>
+              <label>Portfolio URL
+                <input id="fPortfolio" type="url" autocomplete="off">
+              </label>
+              <label>GitHub URL
+                <input id="fGithub" type="url" autocomplete="off">
+              </label>
+            </div>
+
+            <label class="full-row">Notes
+              <textarea id="fNotes" rows="3"></textarea>
+            </label>
+
+            <div class="resume-block full-row">
+              <h2>Resume PDF</h2>
+              <p id="pdfStatus" class="muted">No PDF attached.</p>
+              <div class="resume-actions">
+                <input id="pdfInput" type="file" accept="application/pdf">
+                <a id="pdfDownload" class="hidden" download>Download</a>
+                <button id="removePdf" type="button" class="secondary hidden">Remove</button>
+              </div>
+            </div>
+
+            <div class="resume-block full-row">
+              <h2>Resume JSON</h2>
+              <p class="muted">Pasted or loaded as-is. Not parsed or mapped into the fields above.</p>
+              <div class="resume-actions">
+                <button id="loadResumeJson" type="button" class="secondary">Load from file&hellip;</button>
+                <input id="resumeJsonFile" type="file" accept="application/json,.json" hidden>
+                <button id="fillFromResumeJson" type="button" class="secondary">Fill fields from Resume JSON</button>
+              </div>
+              <textarea id="fResumeJson" rows="8" class="mono" placeholder='{ "summary": "...", "experience": [...] }'></textarea>
+            </div>
+
+            <div class="form-actions full-row">
+              <button id="saveProfile" type="submit">Save changes</button>
+              <span id="saveStatus" class="muted"></span>
+            </div>
+          </form>
+        </section>
+      </div>
+    </div>
+
+    <script src="profile-storage.js"></script>
+    <script src="profiles.js"></script>
+  </body>
+</html>

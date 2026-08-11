@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LinkedIn Job Extractor - Settings</title>
+    <style>
+      body {
+        font-family: "Segoe UI", sans-serif;
+        margin: 0;
+        padding: 20px;
+        background: #f7f9fc;
+        color: #19212a;
+      }
+      .page {
+        max-width: 760px;
+        margin: 0 auto;
+      }
+      .page-header h1 {
+        margin: 0 0 4px;
+      }
+      .page-header p {
+        margin: 0 0 18px;
+        color: #5b6673;
+      }
+      .card {
+        padding: 16px;
+        border-radius: 10px;
+        background: #fff;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        margin-bottom: 16px;
+      }
+      .card h2 {
+        margin: 0 0 4px;
+        font-size: 15px;
+      }
+      .card-hint {
+        margin: 0 0 12px;
+        color: #5b6673;
+        font-size: 12px;
+      }
+      label.checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #33404f;
+        cursor: pointer;
+        margin-bottom: 10px;
+      }
+      label.checkbox-label input[type="checkbox"] {
+        cursor: pointer;
+      }
+      textarea {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 8px 10px;
+        border: 1px solid #d8dee6;
+        border-radius: 8px;
+        color: #19212a;
+        font: inherit;
+        resize: vertical;
+      }
+      textarea:disabled {
+        background: #f4f6f9;
+        color: #5b6673;
+      }
+      input[type="text"],
+      input[type="url"] {
+        padding: 8px 10px;
+        border: 1px solid #d8dee6;
+        border-radius: 8px;
+        color: #19212a;
+        font: inherit;
+        box-sizing: border-box;
+      }
+      select {
+        padding: 7px 8px;
+        border: 1px solid #d8dee6;
+        border-radius: 6px;
+        font: inherit;
+        color: #19212a;
+        background: #fff;
+      }
+      button {
+        padding: 8px 12px;
+        border: 1px solid #0a66c2;
+        border-radius: 6px;
+        background: #0a66c2;
+        color: #fff;
+        font: inherit;
+        cursor: pointer;
+      }
+      button.secondary {
+        background: #fff;
+        color: #0a66c2;
+      }
+      button.danger {
+        border-color: #b3261e;
+        background: #fff;
+        color: #b3261e;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .form-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 8px;
+        flex-wrap: wrap;
+      }
+      .muted {
+        color: #5b6673;
+        font-size: 12px;
+      }
+      .destination-list {
+        list-style: none;
+        margin: 0 0 12px;
+        padding: 0;
+      }
+      .destination-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 12px;
+        border: 1px solid #e5eaf0;
+        border-radius: 8px;
+        background: #fafbfd;
+      }
+      .destination-item + .destination-item {
+        margin-top: 8px;
+      }
+      .destination-info {
+        min-width: 0;
+      }
+      .destination-name {
+        font-weight: 700;
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .destination-url {
+        font-size: 12px;
+        color: #5b6673;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 380px;
+      }
+      .destination-actions {
+        display: flex;
+        gap: 6px;
+        flex-shrink: 0;
+      }
+      .destination-actions button {
+        font-size: 11px;
+        padding: 4px 8px;
+      }
+      .badge-default {
+        padding: 2px 6px;
+        border-radius: 999px;
+        background: #137333;
+        color: #fff;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .add-destination-form {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .add-destination-form input {
+        flex: 1;
+        min-width: 160px;
+      }
+      .empty-state {
+        color: #5b6673;
+        font-size: 13px;
+      }
+      .hidden {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header class="page-header">
+        <h1>Settings</h1>
+        <p>Configuration for the "Open in AI Chat" workflow. Nothing here is uploaded — it only shapes what gets copied to your clipboard.</p>
+      </header>
+
+      <section class="card">
+        <h2>Prompt Template</h2>
+        <p class="card-hint">Sent as the first section of the clipboard payload, before the job data.</p>
+        <label class="checkbox-label" for="useDefaultPromptToggle">
+          <input id="useDefaultPromptToggle" type="checkbox" checked>
+          Use default prompt
+        </label>
+        <textarea id="promptTextarea" rows="4"></textarea>
+        <div class="form-row">
+          <button id="savePromptBtn" type="button" class="secondary">Save Prompt</button>
+          <span id="promptStatus" class="muted"></span>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Include Profile Context</h2>
+        <label class="checkbox-label" for="includeContextToggle" style="margin-bottom: 0;">
+          <input id="includeContextToggle" type="checkbox">
+          Include Active Profile Context
+        </label>
+        <p class="card-hint" style="margin-top: 8px;">
+          Uses the Active Profile's fields and Resume JSON (from the Profiles page). The Resume PDF is never included.
+          Turn this off if the destination chat already knows your background.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>AI Destinations</h2>
+        <p class="card-hint">
+          Saved conversation URLs "Open in AI Chat" can reuse (e.g. an existing ChatGPT/Claude/Gemini thread about your job search).
+          The default destination opens automatically; without one, a brand-new chat opens instead (see New Chat Provider below).
+        </p>
+        <p id="destinationsEmptyState" class="empty-state hidden">No destinations saved yet.</p>
+        <ul id="destinationList" class="destination-list"></ul>
+        <div class="add-destination-form">
+          <input id="destNameInput" type="text" placeholder="Name (e.g. My Job Search Chat)">
+          <input id="destUrlInput" type="url" placeholder="https://chatgpt.com/c/...">
+          <button id="addDestinationBtn" type="button">Add</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>New Chat Provider</h2>
+        <p class="card-hint">Used to open a brand-new chat whenever no default destination is configured above.</p>
+        <select id="newChatProviderSelect"></select>
+      </section>
+    </div>
+
+    <script src="ai-settings.js"></script>
+    <script src="settings.js"></script>
+  </body>
+</html>

@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LinkedIn Job Extractor - Bulk Import</title>
+    <style>
+      body {
+        font-family: "Segoe UI", sans-serif;
+        margin: 0;
+        padding: 20px;
+        background: #f7f9fc;
+        color: #19212a;
+      }
+      .panel {
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 18px;
+        border-radius: 10px;
+        background: #fff;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      }
+      textarea {
+        width: 100%;
+        min-height: 170px;
+        padding: 10px;
+        border: 1px solid #d8dee6;
+        border-radius: 8px;
+        resize: vertical;
+      }
+      .actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 10px;
+      }
+      button {
+        padding: 8px 12px;
+        border: 1px solid #0a66c2;
+        border-radius: 6px;
+        background: #0a66c2;
+        color: white;
+        cursor: pointer;
+      }
+      button.secondary { background: #fff; color: #0a66c2; }
+      .status { margin-top: 12px; color: #5b6673; }
+      .results {
+        margin-top: 16px;
+        border-top: 1px solid #e5eaf0;
+        padding-top: 14px;
+      }
+      .import-meta {
+        margin: 0 0 2px;
+        color: #5b6673;
+        font-size: 13px;
+      }
+      .import-summary {
+        margin: 0 0 10px;
+        color: #5b6673;
+        font-size: 13px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      th, td {
+        padding: 8px 6px;
+        border-bottom: 1px solid #e5eaf0;
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        color: #5b6673;
+        font-weight: 700;
+      }
+      .json-block {
+        margin-top: 12px;
+        padding: 10px;
+        border-radius: 8px;
+        background: #0f172a;
+        color: #f8fafc;
+        white-space: pre-wrap;
+        overflow: auto;
+        font-family: Consolas, monospace;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="panel">
+      <h1>Bulk Import</h1>
+      <p>Paste LinkedIn job links here. Each link will be opened in a temporary tab, extracted, and stored locally.</p>
+      <textarea id="bulkInput" placeholder="Paste LinkedIn job links (one per line or as markdown/HTML links)"></textarea>
+      <div class="actions">
+        <button id="bulkImport">Import jobs</button>
+        <button id="bulkCopy" class="secondary">Copy saved JSON</button>
+        <button id="bulkClear" class="secondary">Clear saved</button>
+      </div>
+      <p id="bulkStatus" class="status">No jobs saved yet.</p>
+
+      <section class="results" id="resultsSection" hidden>
+        <h2 id="resultsHeading">Previous Saved Jobs</h2>
+        <p id="resultsMeta" class="import-meta" hidden></p>
+        <p id="resultsSummary" class="import-summary" hidden></p>
+        <table id="resultsTable">
+          <thead>
+            <tr>
+              <th>Job Title</th>
+              <th>Company</th>
+              <th>Location</th>
+              <th>Salary</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="resultsBody"></tbody>
+        </table>
+        <div id="jsonView" class="json-block"></div>
+      </section>
+    </div>
+    <script src="bulk.js"></script>
+  </body>
+</html>
