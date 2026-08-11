@@ -70,8 +70,8 @@
     collectSearchLinks: document.getElementById("collectSearchLinks"),
     searchResultsStatus: document.getElementById("searchResultsStatus"),
     searchResultsActions: document.getElementById("searchResultsActions"),
-    copySearchLinks: document.getElementById("copySearchLinks"),
-    sendToBulkImport: document.getElementById("sendToBulkImport")
+    sendToBulkImport: document.getElementById("sendToBulkImport"),
+    manageProfileLink: document.getElementById("manageProfileLink")
   };
 
   document.addEventListener("DOMContentLoaded", () => {
@@ -98,8 +98,8 @@
     elements.fillPageBtn.addEventListener("click", handleFillPageClick);
     elements.grantIframeAccess.addEventListener("click", handleGrantIframeAccess);
     elements.collectSearchLinks.addEventListener("click", handleCollectSearchLinks);
-    elements.copySearchLinks.addEventListener("click", handleCopySearchLinks);
     elements.sendToBulkImport.addEventListener("click", handleSendToBulkImport);
+    elements.manageProfileLink.addEventListener("click", handleOpenProfilesTab);
   }
 
   /**
@@ -363,7 +363,8 @@
       }
 
       const count = state.searchResultLinks.length;
-      elements.searchResultsStatus.textContent = `${count} unique job link${count === 1 ? "" : "s"} found.`;
+      elements.searchResultsStatus.textContent = `✓ ${count} unique job${count === 1 ? "" : "s"} found.`;
+      elements.sendToBulkImport.textContent = `Send ${count} Job${count === 1 ? "" : "s"} to Bulk Import`;
       elements.searchResultsActions.classList.remove("hidden");
     } catch (error) {
       elements.searchResultsStatus.textContent = getFriendlyError(error);
@@ -387,18 +388,6 @@
       } catch (_secondError) {
         throw firstError;
       }
-    }
-  }
-
-  async function handleCopySearchLinks() {
-    if (!state.searchResultLinks.length) {
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(state.searchResultLinks.join("\n"));
-      elements.searchResultsStatus.textContent = "Links copied to clipboard.";
-    } catch (_error) {
-      elements.searchResultsStatus.textContent = "Copy failed. Chrome may require focus or clipboard permission for this action.";
     }
   }
 

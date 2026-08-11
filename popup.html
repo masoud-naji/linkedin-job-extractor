@@ -105,43 +105,46 @@
 
       <section id="toolsTabPanel" class="tab-panel hidden" role="tabpanel">
         <section id="assistantPanel" class="assistant-panel">
-          <p class="eyebrow">Application Assistant</p>
+          <p class="eyebrow">Apply to This Job</p>
           <div class="assistant-row">
             <label for="assistantProfileSelect" class="assistant-label">Active profile</label>
             <select id="assistantProfileSelect"></select>
           </div>
-          <button id="fillPageBtn" type="button" class="primary-button">Fill Basic Fields on This Page</button>
+          <button id="fillPageBtn" type="button" class="primary-button">Fill Application Fields</button>
           <p id="assistantStatus" class="assistant-status"></p>
           <div id="iframePermissionRow" class="assistant-row hidden">
             <span id="iframePermissionText" class="assistant-label"></span>
             <button id="grantIframeAccess" type="button">Grant access&hellip;</button>
           </div>
+          <div class="secondary-links">
+            <button id="manageProfileLink" type="button" class="link-button">Manage profile</button>
+            <button id="manageMappings" type="button" class="link-button">Edit mappings</button>
+          </div>
         </section>
 
         <section id="searchResultsPanel" class="assistant-panel hidden">
           <p class="eyebrow">Search Results</p>
+          <p class="section-subtitle">Collect jobs from this LinkedIn search</p>
           <div class="assistant-row">
-            <label for="searchResultsCount" class="assistant-label">Collect</label>
-            <select id="searchResultsCount">
+            <select id="searchResultsCount" aria-label="Number of jobs to collect">
               <option value="5">Top 5</option>
               <option value="10" selected>Top 10</option>
               <option value="20">Top 20</option>
               <option value="all">All loaded</option>
             </select>
-            <button id="collectSearchLinks" type="button">Collect Job Links</button>
+            <button id="collectSearchLinks" type="button">Collect</button>
           </div>
           <p id="searchResultsStatus" class="assistant-status"></p>
-          <div id="searchResultsActions" class="actions search-results-actions hidden">
-            <button id="copySearchLinks" type="button">Copy Links</button>
+          <div id="searchResultsActions" class="search-results-actions hidden">
             <button id="sendToBulkImport" type="button">Send to Bulk Import</button>
           </div>
         </section>
 
+        <p class="eyebrow job-tools-heading">Job Tools</p>
         <footer class="actions">
           <button id="bulkImportTab" type="button">Bulk Import</button>
-          <button id="manageProfiles" type="button">Profiles</button>
-          <button id="manageMappings" type="button">Field Mappings</button>
           <button id="viewHistory" type="button">Application History</button>
+          <button id="manageProfiles" type="button">Profiles</button>
           <button id="openSettings" type="button">Settings</button>
         </footer>
       </section>

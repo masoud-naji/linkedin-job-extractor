@@ -126,6 +126,38 @@ h2 {
   font-size: 12px;
 }
 
+.section-subtitle {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.secondary-links {
+  display: flex;
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.link-button {
+  min-height: auto;
+  padding: 0;
+  border: none;
+  color: var(--accent-dark);
+  background: none;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.link-button:hover:not(:disabled) {
+  border: none;
+  background: none;
+  text-decoration: underline;
+}
+
+.job-tools-heading {
+  margin-top: 4px;
+}
+
 #searchResultsPanel .assistant-row {
   flex-wrap: wrap;
 }
@@ -142,7 +174,12 @@ h2 {
 }
 
 .search-results-actions {
+  display: flex;
   margin-top: 10px;
+}
+
+.search-results-actions button {
+  flex: 1 1 auto;
 }
 
 .tabs {
