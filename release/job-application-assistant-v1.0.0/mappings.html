@@ -4,13 +4,15 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>LinkedIn Job Extractor - Field Mappings</title>
+    <script src="theme.js"></script>
+    <link rel="stylesheet" href="theme.css">
     <style>
       body {
         font-family: "Segoe UI", sans-serif;
         margin: 0;
         padding: 20px;
-        background: #f7f9fc;
-        color: #19212a;
+        background: var(--bg-page);
+        color: var(--ink);
       }
       .page {
         max-width: 1080px;
@@ -21,7 +23,7 @@
       }
       .page-header p {
         margin: 0 0 18px;
-        color: #5b6673;
+        color: var(--muted);
       }
       .toolbar {
         display: flex;
@@ -38,8 +40,10 @@
       }
       input[type="search"] {
         padding: 8px 10px;
-        border: 1px solid #d8dee6;
+        border: 1px solid var(--line);
         border-radius: 8px;
+        color: var(--ink);
+        background: var(--panel);
         font: inherit;
         min-width: 260px;
       }
@@ -53,8 +57,8 @@
       .detail {
         padding: 14px;
         border-radius: 10px;
-        background: #fff;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        background: var(--panel);
+        box-shadow: var(--shadow-card);
       }
       .sidebar h2,
       .detail h2 {
@@ -62,7 +66,7 @@
         font-size: 13px;
         text-transform: uppercase;
         letter-spacing: 0.04em;
-        color: #5b6673;
+        color: var(--muted);
       }
       .domain-list {
         list-style: none;
@@ -81,24 +85,24 @@
         gap: 6px;
         width: 100%;
         padding: 8px 10px;
-        border: 1px solid #e5eaf0;
+        border: 1px solid var(--border-soft);
         border-radius: 8px;
-        background: #fafbfd;
-        color: #19212a;
+        background: var(--soft-panel);
+        color: var(--ink);
         text-align: left;
         cursor: pointer;
         font: inherit;
         font-size: 12px;
       }
       .domain-item.selected .domain-item-button {
-        border-color: #0a66c2;
-        background: #eaf2fc;
+        border-color: var(--accent);
+        background: var(--accent-soft);
       }
       .count-pill {
         padding: 1px 7px;
         border-radius: 999px;
-        background: #e5eaf0;
-        color: #5b6673;
+        background: var(--border-soft);
+        color: var(--muted);
         font-size: 11px;
         font-weight: 700;
       }
@@ -110,7 +114,7 @@
         margin-bottom: 12px;
       }
       .empty-state {
-        color: #5b6673;
+        color: var(--muted);
       }
       table.mapping-table {
         width: 100%;
@@ -121,19 +125,21 @@
       .mapping-table td {
         text-align: left;
         padding: 8px 10px;
-        border-bottom: 1px solid #eef1f5;
+        border-bottom: 1px solid var(--border-faint);
         vertical-align: middle;
       }
       .mapping-table th {
-        color: #5b6673;
+        color: var(--muted);
         font-size: 11px;
         text-transform: uppercase;
         letter-spacing: 0.03em;
       }
       .mapping-table select {
         padding: 5px 6px;
-        border: 1px solid #d8dee6;
+        border: 1px solid var(--line);
         border-radius: 6px;
+        color: var(--ink);
+        background: var(--panel);
         font: inherit;
         font-size: 12px;
       }
@@ -142,8 +148,10 @@
         width: 100%;
         margin-top: 6px;
         padding: 5px 6px;
-        border: 1px solid #d8dee6;
+        border: 1px solid var(--line);
         border-radius: 6px;
+        color: var(--ink);
+        background: var(--panel);
         font: inherit;
         font-size: 12px;
         box-sizing: border-box;
@@ -157,20 +165,20 @@
         letter-spacing: 0.02em;
       }
       .pill.source-auto {
-        background: #eaf2fc;
-        color: #0a66c2;
+        background: var(--accent-soft);
+        color: var(--accent-dark);
       }
       .pill.source-user {
-        background: #eaf6ee;
-        color: #137333;
+        background: var(--success-soft);
+        color: var(--success);
       }
       .pill.status-enabled {
-        background: #eaf6ee;
-        color: #137333;
+        background: var(--success-soft);
+        color: var(--success);
       }
       .pill.status-disabled {
-        background: #fdeaea;
-        color: #b3261e;
+        background: var(--danger-soft);
+        color: var(--danger);
       }
       .row-actions {
         display: flex;
@@ -178,22 +186,22 @@
       }
       button {
         padding: 7px 11px;
-        border: 1px solid #0a66c2;
+        border: 1px solid var(--accent);
         border-radius: 6px;
-        background: #0a66c2;
+        background: var(--accent);
         color: #fff;
         font: inherit;
         font-size: 12px;
         cursor: pointer;
       }
       button.secondary {
-        background: #fff;
-        color: #0a66c2;
+        background: var(--panel);
+        color: var(--accent);
       }
       button.danger {
-        border-color: #b3261e;
-        background: #fff;
-        color: #b3261e;
+        border-color: var(--danger);
+        background: var(--panel);
+        color: var(--danger);
       }
       button:disabled {
         opacity: 0.5;
@@ -201,11 +209,11 @@
       }
       .status-message {
         margin: 0 0 12px;
-        color: #5b6673;
+        color: var(--muted);
         font-size: 12px;
       }
       .domain-cell {
-        color: #5b6673;
+        color: var(--muted);
         font-size: 11px;
       }
       .field-cell strong {

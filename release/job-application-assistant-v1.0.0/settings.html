@@ -4,13 +4,15 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>LinkedIn Job Extractor - Settings</title>
+    <script src="theme.js"></script>
+    <link rel="stylesheet" href="theme.css">
     <style>
       body {
         font-family: "Segoe UI", sans-serif;
         margin: 0;
         padding: 20px;
-        background: #f7f9fc;
-        color: #19212a;
+        background: var(--bg-page);
+        color: var(--ink);
       }
       .page {
         max-width: 760px;
@@ -21,13 +23,13 @@
       }
       .page-header p {
         margin: 0 0 18px;
-        color: #5b6673;
+        color: var(--muted);
       }
       .card {
         padding: 16px;
         border-radius: 10px;
-        background: #fff;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        background: var(--panel);
+        box-shadow: var(--shadow-card);
         margin-bottom: 16px;
       }
       .card h2 {
@@ -36,7 +38,7 @@
       }
       .card-hint {
         margin: 0 0 12px;
-        color: #5b6673;
+        color: var(--muted);
         font-size: 12px;
       }
       label.checkbox-label {
@@ -45,7 +47,7 @@
         gap: 8px;
         font-size: 13px;
         font-weight: 600;
-        color: #33404f;
+        color: var(--ink);
         cursor: pointer;
         margin-bottom: 10px;
       }
@@ -56,50 +58,52 @@
         width: 100%;
         box-sizing: border-box;
         padding: 8px 10px;
-        border: 1px solid #d8dee6;
+        border: 1px solid var(--line);
         border-radius: 8px;
-        color: #19212a;
+        color: var(--ink);
+        background: var(--panel);
         font: inherit;
         resize: vertical;
       }
       textarea:disabled {
-        background: #f4f6f9;
-        color: #5b6673;
+        background: var(--soft-panel);
+        color: var(--muted);
       }
       input[type="text"],
       input[type="url"] {
         padding: 8px 10px;
-        border: 1px solid #d8dee6;
+        border: 1px solid var(--line);
         border-radius: 8px;
-        color: #19212a;
+        color: var(--ink);
+        background: var(--panel);
         font: inherit;
         box-sizing: border-box;
       }
       select {
         padding: 7px 8px;
-        border: 1px solid #d8dee6;
+        border: 1px solid var(--line);
         border-radius: 6px;
         font: inherit;
-        color: #19212a;
-        background: #fff;
+        color: var(--ink);
+        background: var(--panel);
       }
       button {
         padding: 8px 12px;
-        border: 1px solid #0a66c2;
+        border: 1px solid var(--accent);
         border-radius: 6px;
-        background: #0a66c2;
+        background: var(--accent);
         color: #fff;
         font: inherit;
         cursor: pointer;
       }
       button.secondary {
-        background: #fff;
-        color: #0a66c2;
+        background: var(--panel);
+        color: var(--accent);
       }
       button.danger {
-        border-color: #b3261e;
-        background: #fff;
-        color: #b3261e;
+        border-color: var(--danger);
+        background: var(--panel);
+        color: var(--danger);
       }
       button:disabled {
         opacity: 0.5;
@@ -112,8 +116,13 @@
         margin-top: 8px;
         flex-wrap: wrap;
       }
+      .theme-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--ink);
+      }
       .muted {
-        color: #5b6673;
+        color: var(--muted);
         font-size: 12px;
       }
       .destination-list {
@@ -127,9 +136,9 @@
         justify-content: space-between;
         gap: 10px;
         padding: 10px 12px;
-        border: 1px solid #e5eaf0;
+        border: 1px solid var(--border-soft);
         border-radius: 8px;
-        background: #fafbfd;
+        background: var(--soft-panel);
       }
       .destination-item + .destination-item {
         margin-top: 8px;
@@ -146,7 +155,7 @@
       }
       .destination-url {
         font-size: 12px;
-        color: #5b6673;
+        color: var(--muted);
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -164,7 +173,7 @@
       .badge-default {
         padding: 2px 6px;
         border-radius: 999px;
-        background: #137333;
+        background: var(--success-solid);
         color: #fff;
         font-size: 10px;
         font-weight: 700;
@@ -181,7 +190,7 @@
         min-width: 160px;
       }
       .empty-state {
-        color: #5b6673;
+        color: var(--muted);
         font-size: 13px;
       }
       .hidden {
@@ -195,6 +204,19 @@
         <h1>Settings</h1>
         <p>Configuration for the "Open in AI Chat" workflow. Nothing here is uploaded — it only shapes what gets copied to your clipboard.</p>
       </header>
+
+      <section class="card">
+        <h2>Appearance</h2>
+        <p class="card-hint">Choose how the extension looks. "System" follows your browser/OS light or dark setting automatically.</p>
+        <div class="form-row">
+          <label for="themeSelect" class="theme-label">Theme</label>
+          <select id="themeSelect">
+            <option value="system">System (follow browser/OS)</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </div>
+      </section>
 
       <section class="card">
         <h2>Prompt Template</h2>

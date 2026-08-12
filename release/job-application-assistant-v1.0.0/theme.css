@@ -1,0 +1,84 @@
+/* Shared color tokens for LinkedIn Job Extractor. Theme is chosen in
+   Settings (Light / Dark / System) and applied via theme.js, which sets
+   data-theme="light" or data-theme="dark" on <html> before first paint. */
+
+:root {
+  color-scheme: light;
+
+  --ink: #19212a;
+  --muted: #5b6673;
+  --text-faint: #8a93a1;
+
+  --bg-page: #f7f9fc;
+  --panel: #ffffff;
+  --soft-panel: #f5f7f9;
+  --hover-bg: #f1f4f8;
+  --popup-gradient: linear-gradient(145deg, #eef4fb 0%, #ffffff 48%, #f6f1e9 100%);
+
+  --line: #d8dee6;
+  --border-soft: #e5eaf0;
+  --border-faint: #eef1f5;
+
+  --accent: #0a66c2;
+  --accent-dark: #084f96;
+  --accent-soft: #eaf2fc;
+
+  --accent-alt: #1a56db;
+  --accent-alt-solid: #1a56db;
+  --accent-alt-solid-hover: #1544ac;
+
+  --success: #137333;
+  --success-soft: #eaf6ee;
+  --success-solid: #137333;
+
+  --warning: #9a6700;
+
+  --danger: #b3261e;
+  --danger-soft: #fdecea;
+  --danger-border-soft: #f0d3d1;
+
+  --shadow: 0 16px 48px rgba(20, 32, 46, 0.16);
+  --shadow-card: 0 10px 30px rgba(20, 32, 46, 0.1);
+
+  --code-bg: #0f172a;
+  --code-text: #f8fafc;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --ink: #e8ebf0;
+  --muted: #9aa4b2;
+  --text-faint: #7a8492;
+
+  --bg-page: #0f1216;
+  --panel: #1b1f26;
+  --soft-panel: #20252c;
+  --hover-bg: #262c35;
+  --popup-gradient: linear-gradient(145deg, #12161c 0%, #1b1f26 48%, #1a1712 100%);
+
+  --line: #333c48;
+  --border-soft: #2a323d;
+  --border-faint: #262d36;
+
+  --accent-dark: #8ec6f7;
+  --accent-soft: #16283d;
+
+  --accent-alt: #6f94f7;
+
+  --success: #3fbf6f;
+  --success-soft: #163a24;
+
+  --warning: #d99a3d;
+
+  --danger: #f2726b;
+  --danger-soft: #3a1f1e;
+  --danger-border-soft: #5a2b28;
+
+  --shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+  --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+
+body {
+  background-color: var(--bg-page);
+}
