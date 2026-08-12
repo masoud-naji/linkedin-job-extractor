@@ -2,8 +2,10 @@
   "use strict";
 
   const settings = window.LJEAISettings;
+  const theme = window.LJETheme;
 
   const el = {
+    themeSelect: document.getElementById("themeSelect"),
     useDefaultPromptToggle: document.getElementById("useDefaultPromptToggle"),
     promptTextarea: document.getElementById("promptTextarea"),
     savePromptBtn: document.getElementById("savePromptBtn"),
@@ -22,10 +24,19 @@
   async function init() {
     populateProviderSelect();
     bindEvents();
-    await Promise.all([loadPromptSection(), loadIncludeContextSection(), loadProviderSection(), loadDestinations()]);
+    await Promise.all([loadThemeSection(), loadPromptSection(), loadIncludeContextSection(), loadProviderSection(), loadDestinations()]);
+  }
+
+  async function loadThemeSection() {
+    el.themeSelect.value = await theme.get();
+  }
+
+  async function handleThemeChange() {
+    await theme.set(el.themeSelect.value);
   }
 
   function bindEvents() {
+    el.themeSelect.addEventListener("change", handleThemeChange);
     el.useDefaultPromptToggle.addEventListener("change", handleToggleUseDefaultPrompt);
     el.savePromptBtn.addEventListener("click", handleSavePrompt);
     el.includeContextToggle.addEventListener("change", handleToggleIncludeContext);

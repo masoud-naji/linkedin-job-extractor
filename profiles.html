@@ -4,13 +4,15 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>LinkedIn Job Extractor - Profiles</title>
+    <script src="theme.js"></script>
+    <link rel="stylesheet" href="theme.css">
     <style>
       body {
         font-family: "Segoe UI", sans-serif;
         margin: 0;
         padding: 20px;
-        background: #f7f9fc;
-        color: #19212a;
+        background: var(--bg-page);
+        color: var(--ink);
       }
       .page {
         max-width: 960px;
@@ -21,7 +23,7 @@
       }
       .page-header p {
         margin: 0 0 18px;
-        color: #5b6673;
+        color: var(--muted);
       }
       .layout {
         display: grid;
@@ -33,8 +35,8 @@
       .detail {
         padding: 14px;
         border-radius: 10px;
-        background: #fff;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        background: var(--panel);
+        box-shadow: var(--shadow-card);
       }
       .sidebar-toolbar {
         display: grid;
@@ -59,21 +61,21 @@
         gap: 6px;
         width: 100%;
         padding: 8px 10px;
-        border: 1px solid #e5eaf0;
+        border: 1px solid var(--border-soft);
         border-radius: 8px;
-        background: #fafbfd;
-        color: #19212a;
+        background: var(--soft-panel);
+        color: var(--ink);
         text-align: left;
         cursor: pointer;
       }
       .profile-item.selected .profile-item-button {
-        border-color: #0a66c2;
-        background: #eaf2fc;
+        border-color: var(--accent);
+        background: var(--accent-soft);
       }
       .badge-active {
         padding: 2px 6px;
         border-radius: 999px;
-        background: #137333;
+        background: var(--success-solid);
         color: #fff;
         font-size: 10px;
         font-weight: 700;
@@ -81,11 +83,11 @@
         letter-spacing: 0.04em;
       }
       .sidebar-footer {
-        border-top: 1px solid #e5eaf0;
+        border-top: 1px solid var(--border-soft);
         padding-top: 10px;
       }
       .empty-state {
-        color: #5b6673;
+        color: var(--muted);
       }
       .detail-header {
         display: flex;
@@ -101,8 +103,8 @@
       .active-tag {
         padding: 4px 8px;
         border-radius: 999px;
-        background: #eaf6ee;
-        color: #137333;
+        background: var(--success-soft);
+        color: var(--success);
         font-size: 12px;
         font-weight: 700;
       }
@@ -116,7 +118,7 @@
         flex-direction: column;
         gap: 4px;
         margin-bottom: 12px;
-        color: #5b6673;
+        color: var(--muted);
         font-size: 12px;
         font-weight: 700;
         text-transform: uppercase;
@@ -130,9 +132,10 @@
       input[type="url"],
       textarea {
         padding: 8px 10px;
-        border: 1px solid #d8dee6;
+        border: 1px solid var(--line);
         border-radius: 8px;
-        color: #19212a;
+        color: var(--ink);
+        background: var(--panel);
         font: inherit;
         text-transform: none;
         letter-spacing: normal;
@@ -159,7 +162,7 @@
         text-transform: none;
       }
       .muted {
-        color: #5b6673;
+        color: var(--muted);
         font-size: 12px;
         font-weight: 400;
         text-transform: none;
@@ -178,28 +181,28 @@
       }
       button {
         padding: 8px 12px;
-        border: 1px solid #0a66c2;
+        border: 1px solid var(--accent);
         border-radius: 6px;
-        background: #0a66c2;
+        background: var(--accent);
         color: #fff;
         font: inherit;
         cursor: pointer;
       }
       button.secondary {
-        background: #fff;
-        color: #0a66c2;
+        background: var(--panel);
+        color: var(--accent);
       }
       button.danger {
-        border-color: #b3261e;
-        background: #fff;
-        color: #b3261e;
+        border-color: var(--danger);
+        background: var(--panel);
+        color: var(--danger);
       }
       button:disabled {
         opacity: 0.5;
         cursor: not-allowed;
       }
       a#pdfDownload {
-        color: #0a66c2;
+        color: var(--accent);
       }
       .hidden {
         display: none !important;
