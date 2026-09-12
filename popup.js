@@ -86,7 +86,7 @@
     elements.toolsTabButton.addEventListener("click", () => switchTab("tools"));
     elements.toggleDetails.addEventListener("click", handleToggleDetails);
     elements.copyText.addEventListener("click", () => copyToClipboard(formatPlainText(state.currentJob), "Copied job data.", elements.copyText));
-    elements.copyJson.addEventListener("click", () => copyToClipboard(JSON.stringify(state.currentJob || {}, null, 2), "Copied JSON.", elements.copyJson));
+    elements.copyJson.addEventListener("click", () => copyToClipboard(window.LJEJobFormat.formatJson(state.currentJob), "Copied JSON.", elements.copyJson));
     elements.refreshData.addEventListener("click", () => loadJobData({ fresh: true }));
     elements.openAIChat.addEventListener("click", handleOpenInAIChat);
     elements.bulkImportTab.addEventListener("click", handleOpenBulkImportTab);
@@ -760,35 +760,7 @@
    * @returns {string}
    */
   function formatPlainText(job) {
-    if (!job) {
-      return "";
-    }
-
-    const lines = [
-      `Job Title: ${valueOrFallback(job.jobTitle)}`,
-      `Company: ${valueOrFallback(job.companyName)}`,
-      `Company URL: ${valueOrFallback(job.companyUrl)}`,
-      `Location: ${valueOrFallback(job.location)}`,
-      `Workplace Type: ${valueOrFallback(job.workplaceType)}`,
-      `Employment Type: ${valueOrFallback(job.employmentType)}`,
-      `Seniority: ${valueOrFallback(job.seniorityLevel)}`,
-      `Salary: ${valueOrFallback(job.salary)}`,
-      `Date Posted: ${valueOrFallback(job.datePosted)}`,
-      `Applicants: ${valueOrFallback(job.applicantCount)}`,
-      `Easy Apply: ${job.easyApply === true ? "Yes" : "No"}`,
-      `Application Closed: ${job.applicationClosed === true ? "Yes" : "No"}`,
-      `Job URL: ${valueOrFallback(job.jobUrl)}`,
-      `LinkedIn Job ID: ${valueOrFallback(job.jobId)}`,
-      `Extracted At: ${valueOrFallback(job.extractedAt)}`,
-      "",
-      "Skills:",
-      Array.isArray(job.skills) && job.skills.length ? job.skills.join(", ") : NOT_FOUND,
-      "",
-      "About the Job:",
-      valueOrFallback(job.description)
-    ];
-
-    return lines.join("\n");
+    return window.LJEJobFormat.formatPlainText(job);
   }
 
   /**

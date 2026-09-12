@@ -24,7 +24,8 @@
     "scripting",
     "storage",
     "tabs",
-    "unlimitedStorage"
+    "unlimitedStorage",
+    "contextMenus"
   ],
   "host_permissions": [
     "https://www.linkedin.com/*"
